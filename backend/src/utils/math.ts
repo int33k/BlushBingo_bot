@@ -93,13 +93,9 @@ export const validateMoveNumber = validate<number>((_s, d) => d?.number, 'Number
 export const validateSocketGameParams = (socket: Socket, data: any, socketData = true): { playerId: string; gameId: string } | null => {
   const playerId = validatePlayerAuth(socket, data);
   const gameId = socketData ? validateGameId(socket, data) : validate<string>((_s, d) => d?.gameId, 'Game ID is required')(socket, data);
-  return playerId && gameId ? { playerId, gameId } : null;
+    return playerId && gameId ? { playerId, gameId } : null;
 };
 export const handleSocketValidationError = (socket: Socket, error: Error, context: string): void => (
   logger.error(`Socket validation error in ${context}: ${error.message}`),
   handleSocketError(error instanceof AppError ? error : new AppError(`Validation failed in ${context}: ${error.message}`, ErrorCode.VALIDATION_ERROR, 400), socket)
 );
-
-// Legacy exports for backward compatibility
-export const validateRequired = req, createUserData = userData, validateGameParams = gameParams, validateGameState = gameState;
-export const controllerWrapper = ctrl(), createController201 = ctrl(201), createController204 = ctrl(204), createController = ctrl;

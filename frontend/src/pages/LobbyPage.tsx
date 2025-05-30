@@ -38,7 +38,7 @@ const LobbyPage: React.FC = () => {
     if (!gameId || currentGame || !isConnected || !user || fetchedRef.current === gameId) return;
     fetchedRef.current = gameId;
     emit('connection:reconnect', { gameId, playerId: user.identifier });
-    fetchGame(gameId).catch(error => {
+    fetchGame(gameId).catch((error: Error) => {
       console.error('Failed to fetch game:', error);
       fetchedRef.current = null;
       setState(s => ({ ...s, notification: { message: 'Failed to load game. Please check the game code.', type: 'error' } }));

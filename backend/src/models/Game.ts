@@ -3,7 +3,7 @@ import { MoveSchema } from './Move';
 import * as gameMethods from './gameMethods';
 import { GameDocument } from '../types/gameTypes';
 
-// Ultra-compact player schema using smart defaults and type inference
+// Game player schema using shared constants to eliminate duplication
 const GamePlayerSchema = new Schema({
   playerId: { type: String, required: true },
   name: { type: String, required: true, trim: true },
@@ -19,7 +19,7 @@ const GamePlayerSchema = new Schema({
   gameId: { type: String, default: null }
 });
 
-// Ultra-compact Game schema with consolidated field definitions
+// Game schema with optimized field definitions using shared types
 const GameSchema = new Schema({
   gameId: { type: String, required: true, unique: true },
   status: { type: String, enum: ['waiting', 'lobby', 'playing', 'completed'], default: 'waiting' },

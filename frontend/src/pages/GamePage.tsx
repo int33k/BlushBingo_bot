@@ -3,19 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGame, useUser, useSocket } from '../hooks';
 import ConnectionStatus from '../components/ConnectionStatus';
 import VictoryOverlay from '../components/VictoryOverlay';
-import type { Notification } from '../types';
+import type { Notification, Move } from '../types';
+import { LINE_PATTERNS } from '../../../shared/game/logic';
+import { BINGO_LETTERS, CARD_SIZE } from '../../../shared/constants/game';
+import type { LinePattern } from '../../../shared/game/logic';
 
 // Constants & Utils
-const [CARD_SIZE, CELL_SIZE, LETTERS] = [5, 64, ['B', 'I', 'N', 'G', 'O']] as const;
+const CELL_SIZE = 64;
+const LETTERS = BINGO_LETTERS;
 const generateId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 const apiCall = async (endpoint: string, data: Record<string, unknown>) => {
   const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error(`API call failed: ${res.status}`);
   return res.json();
 };
-
-// Line patterns for bingo detection - optimized with spread and array methods
-const LINE_PATTERNS = [...Array.from({ length: 5 }, (_, i) => [{ cells: Array.from({ length: 5 }, (_, j) => ({ row: i, col: j })) }, { cells: Array.from({ length: 5 }, (_, j) => ({ row: j, col: i })) }]).flat(), { cells: Array.from({ length: 5 }, (_, i) => ({ row: i, col: i })) }, { cells: Array.from({ length: 5 }, (_, i) => ({ row: i, col: 4 - i })) }];
 
 const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -42,12 +43,12 @@ const GamePage: React.FC = () => {
 
 
 
-    const completedLines = !bingoCard || !current ? [] : LINE_PATTERNS.filter(pattern => pattern.cells.every(({ row, col }: { row: number; col: number }) => {
+    const completedLines = !bingoCard || !current ? [] : LINE_PATTERNS.filter((pattern: LinePattern) => pattern.cells.every(({ row, col }: { row: number; col: number }) => {
       const cellValue = bingoCard[row][col];
       return cellValue === null || (current.markedCells || []).includes(cellValue);
     }));
 
-    const isCellInCompletedLine = (row: number, col: number) => completedLines.some(line => line.cells.some((cell: { row: number; col: number }) => cell.row === row && cell.col === col));
+    const isCellInCompletedLine = (row: number, col: number) => completedLines.some((line: LinePattern) => line.cells.some((cell: { row: number; col: number }) => cell.row === row && cell.col === col));
 
     return { role, current, opponent, completedLines, isCellInCompletedLine };
   }, [currentGame, user, bingoCard]);
@@ -63,9 +64,9 @@ const GamePage: React.FC = () => {
   }, [gameId, navigate, isLoading, fetchGame]);
   useEffect(() => {
     if (currentGame && currentPlayer?.card) {
-      setBingoCard(currentPlayer.card.map(row => row.map(cell => (currentPlayer.markedCells || []).includes(cell) ? null : cell)));
+      setBingoCard(currentPlayer.card.map((row: number[]) => row.map((cell: number) => (currentPlayer.markedCells || []).includes(cell) ? null : cell)));
     }
-    if (currentGame?.moves) setMoveHistory(currentGame.moves.map(move => ({ ...move, number: move.value })));
+    if (currentGame?.moves) setMoveHistory(currentGame.moves.map((move: Move) => ({ ...move, number: move.value })));
   }, [currentGame, currentPlayer]);
   useEffect(() => { const container = movesContainerRef.current; if (container) setTimeout(() => container.scrollLeft = container.scrollWidth, 50); }, [moveHistory]);
 
@@ -220,7 +221,7 @@ const GamePage: React.FC = () => {
         </div></div>
         {/* BINGO Letters */}
         <div className="w-full max-w-[320px] mx-auto"><div className="grid grid-cols-5 gap-2">
-          {LETTERS.map((letter, idx) => {
+          {LETTERS.map((letter: string, idx: number) => {
             const active = activeLetters[idx]; const marked = markedLetters[idx];
             return <div key={letter} onClick={() => active && !marked && handleLetterClick(idx)} className={`text-center py-3 rounded-lg font-bold text-2xl transition-all duration-300 relative ${active ? (marked ? 'text-red-500 bg-red-500/20 border-2 border-red-500 shadow-[0_0_15px_#EF4444]' : 'text-red-500 border-2 border-red-500/50 hover:bg-red-500/10 cursor-pointer') : 'text-red-500/40 border border-red-500/20'}`}>
               {letter}
@@ -239,7 +240,7 @@ const GamePage: React.FC = () => {
       {uiState.showBingoAnimation && <div className="fixed inset-0 bg-slate-900/90 flex flex-col items-center justify-center z-50">
         <div className="flex items-center justify-center relative h-24 mb-8 w-80">
           <div className="absolute top-1/2 left-0 h-2 bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-[0_0_15px_#EF4444] transition-all duration-1000" style={{ width: uiState.bingoAnimationComplete ? '100%' : '0%', transform: 'translateY(-50%)' }} />
-          {LETTERS.map((letter, idx) => <div key={letter} className="relative z-10 w-16 h-16 mx-2 flex items-center justify-center bg-slate-800/80 rounded-xl border-2 border-red-500 shadow-[0_0_15px_#EF4444]" style={{ animation: `bounce 0.5s ${idx * 0.2}s, pulse 1.5s ${idx * 0.2 + 0.5}s infinite`, fontSize: '2rem', fontWeight: '800', color: '#EF4444', textShadow: '0 0 20px #EF4444' }}>
+          {LETTERS.map((letter: string, idx: number) => <div key={letter} className="relative z-10 w-16 h-16 mx-2 flex items-center justify-center bg-slate-800/80 rounded-xl border-2 border-red-500 shadow-[0_0_15px_#EF4444]" style={{ animation: `bounce 0.5s ${idx * 0.2}s, pulse 1.5s ${idx * 0.2 + 0.5}s infinite`, fontSize: '2rem', fontWeight: '800', color: '#EF4444', textShadow: '0 0 20px #EF4444' }}>
             {letter}
             {markedLetters[idx] && <div className="absolute inset-0 flex items-center justify-center text-red-500 text-4xl font-bold">/</div>}
           </div>)}

@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { PlayerStatus } from '../../../shared/types/game';
 
-// Player schema with inline field definitions
+// Player schema using shared types to eliminate duplication
 export const PlayerSchema = new Schema({
   playerId: { type: String, required: true },
   name: { type: String, required: true, trim: true },
@@ -16,11 +17,11 @@ export const PlayerSchema = new Schema({
   gameId: { type: String, default: null }
 });
 
-// interface with essential properties
+// Interface using shared PlayerStatus type
 export interface PlayerDocument extends Document {
   playerId: string; name: string; username?: string; telegramId?: string; socketId: string;
   connected: boolean; card?: number[][]; score: number; markedCells?: Array<string | number>;
-  status: 'waiting' | 'ready' | 'playing' | 'disconnected'; completedLines?: number;
+  status: PlayerStatus; completedLines?: number;
   markedLetters?: string[]; gameId?: string; [key: string]: any;
 }
 

@@ -19,7 +19,7 @@ const LaunchPage: React.FC = () => {
   useEffect(() => {
     if (!joinGameId || !isConnected || state.isLoading) return;
     setState(s => ({ ...s, challengeCode: joinGameId, isLoading: true }));
-    joinGame(joinGameId).then(res => res.success ? navigate(`/lobby/${joinGameId}`) : setState(s => ({ ...s, notification: { message: res.error || 'Failed to join game', type: 'error' }, isLoading: false }))).catch(err => setState(s => ({ ...s, notification: { message: (err as Error).message || 'Failed to join game', type: 'error' }, isLoading: false })));
+    joinGame(joinGameId).then((res: any) => res.success ? navigate(`/lobby/${joinGameId}`) : setState(s => ({ ...s, notification: { message: res.error || 'Failed to join game', type: 'error' }, isLoading: false }))).catch((err: any) => setState(s => ({ ...s, notification: { message: (err as Error).message || 'Failed to join game', type: 'error' }, isLoading: false })));
   }, [joinGameId, isConnected, state.isLoading, joinGame, navigate]);
 
   const [animatedTransform, showNotification, handleInputChange] = [

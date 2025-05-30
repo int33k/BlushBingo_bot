@@ -1,14 +1,16 @@
 /**
- * Player-related type definitions - Ultra-optimized with consolidated types
+ * Player-related type definitions - Using shared types to eliminate duplication
  */
 
-// Core player types using union types for optimization
-export type PlayerRole = 'challenger' | 'acceptor';
-export type PlayerStatus = 'waiting' | 'ready' | 'playing' | 'disconnected';
+import { PlayerRole, PlayerStatus, Player } from '../../../shared/types/game';
 
-// Ultra-optimized player interface using inline types and optional chaining
-export interface IPlayer {
-  playerId: string; name: string; username?: string; telegramId?: string; connected: boolean;
-  status: PlayerStatus; card?: number[][]; markedCells?: number[]; completedLines?: number;
-  markedLetters?: string[]; identifier?: string; socketId?: string; score?: number; gameId?: string;
+// Re-export shared types for backend compatibility
+export { PlayerRole, PlayerStatus };
+
+// Backend-specific player interface extending shared interface
+export interface IPlayer extends Player {
+  identifier?: string;
+  socketId?: string;
+  score?: number;
+  gameId?: string;
 }

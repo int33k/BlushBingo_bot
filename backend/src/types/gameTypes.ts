@@ -1,25 +1,29 @@
 /**
- * Game-related type definitions - Ultra-optimized with consolidated types
+ * Game-related type definitions - Using shared types to eliminate duplication
  */
 
 import { Document } from 'mongoose';
 import { IPlayer, PlayerRole } from './playerTypes';
+import { 
+  GameStatus, 
+  WinReason, 
+  Move, 
+  DisconnectionTimer, 
+  RematchRequests,
+  Game as SharedGame 
+} from '../../../shared/types/game';
 
-// Core game types using union types for optimization
-export type GameStatus = 'waiting' | 'lobby' | 'playing' | 'completed';
-export type WinReason = 'bingo' | 'disconnection' | 'forfeit';
+// Re-export shared types for backend compatibility
+export { GameStatus, WinReason };
 
-// Optimized interfaces using inline types and method chaining patterns
-export interface IMove { playerId: string; position: { row: number; col: number; }; value: number; timestamp: Date; }
-export interface IDisconnectionTimer { playerId: string; role: string; startTime: Date; expiryTime: Date; }
-export interface IRematchRequests { challenger: boolean; acceptor: boolean; }
+// Backend-specific interfaces that extend shared types
+export interface IMove extends Move {}
+export interface IDisconnectionTimer extends DisconnectionTimer {}
+export interface IRematchRequests extends RematchRequests {}
 
-// Core game interface with optimized structure
-export interface IGame {
-  gameId: string; status: GameStatus; statusMessage?: string; currentTurn: string | null; moves: IMove[];
-  players: { challenger?: IPlayer; acceptor?: IPlayer; }; winner?: string | null; winReason?: WinReason;
-  rematchRequests?: IRematchRequests; rematchGameId?: string; disconnectionTimer?: IDisconnectionTimer;
-  connectedPlayers?: string[]; createdAt: Date; lastActivityAt: Date; lookupTable?: number[][];
+// Core game interface extending shared interface
+export interface IGame extends SharedGame {
+  lookupTable?: number[][];
 }
 
 // Game document interface with ultra-optimized method signatures using fluent interface pattern

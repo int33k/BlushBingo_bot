@@ -1,13 +1,14 @@
 {
-  "name": "@bingo/shared",
+  "name": "@b3/shared",
   "version": "1.0.0",
+  "description": "Shared utilities for B3 Bingo Game",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc -w"
+    "dev": "tsc --watch"
   },
-  "devDependencies": {
+  "peerDependencies": {
     "typescript": "^5.0.0"
   }
 }

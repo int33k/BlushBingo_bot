@@ -1,22 +1,23 @@
 /**
- * Ultra-optimized game logic using advanced functional patterns
+ * Ultra-optimized game logic using shared modules and advanced functional patterns
  */
 import { GameDocument } from '../types/gameTypes';
 import { PlayerRole } from '../types/playerTypes';
+import { checkCompletedLines as sharedCheckCompletedLines, generateLines, isLineComplete } from '../../../shared/game/logic';
+import { CARD_SIZE, BINGO_LETTERS, DEFAULT_REQUIRED_LINES_FOR_BINGO } from '../../../shared/constants/game';
 import config from '../config';
 
-// Ultra-compact constants with destructuring
-const { size: S, letters: L } = config.game.board;
+// Ultra-compact constants with destructuring - use shared values where possible
+const { size: S = CARD_SIZE } = config.game.board;
 const { maxValue: M } = config.game.card;
-const { requiredLinesForBingo: R } = config.game.rules;
+const { requiredLinesForBingo: R = DEFAULT_REQUIRED_LINES_FOR_BINGO } = config.game.rules;
 const ROLES: PlayerRole[] = config.game.players.roles as PlayerRole[];
+const L = BINGO_LETTERS;
 
 // Ultra-compact utility functions
 const pos = (card: number[][]) => card.reduce((m, row, r) => (row.forEach((n, c) => m[n] = [r, c]), m), {} as Record<number, [number, number]>);
 const getP = (g: GameDocument, role: PlayerRole) => g.players[role];
 const valid = (p: any) => p?.card?.length && p?.markedCells;
-const lines = (card: number[][]) => [...card, ...Array.from({length: S}, (_, j) => card.map(r => r[j])), Array.from({length: S}, (_, i) => card[i][i]), Array.from({length: S}, (_, i) => card[i][S-1-i])];
-const complete = (line: number[], marked: Array<string | number>) => line.every(c => marked.includes(c));
 
 // Ultra-compact exports with inline optimizations
 export const generateLookupTable = (c1: number[][], c2: number[][]): number[][] =>
@@ -27,8 +28,8 @@ export const generateLookupTable = (c1: number[][], c2: number[][]): number[][] 
 
 export const checkCompletedLines = (card: number[][], marked: Array<string | number>) => {
   if (!card?.length || !marked?.length) return { completedLines: 0, markedLetters: [] };
-  const completedLines = lines(card).filter(l => complete(l, marked)).length;
-  return { completedLines, markedLetters: L.slice(0, Math.min(completedLines, R)) };
+  // Use shared game logic function
+  return sharedCheckCompletedLines(card, marked);
 };
 
 export const checkGameCompletedLines = (game: GameDocument, role: PlayerRole): number => {
