@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+logs
+*.log
+
+# Tests
+coverage
+jest.config.js
+jest.setup.js
+**/__tests__
+**/*.test.js
+**/*.spec.js
+
+# IDEs and editors
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Other
+README.md
+LICENSE
+*.md
