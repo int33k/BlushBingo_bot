@@ -27,12 +27,7 @@ export class GameRepository extends BaseRepository implements IGameRepository {
     return this.executeOrThrow(() => Game.findOne(this.activeGameQuery(playerId)), 'Error finding active game by player ID');
   }
 
-  async findWithExpiredDisconnectionTimers(): Promise<GameDocument[]> {
-    return this.executeOrThrow(() => Game.find({
-      'disconnectionTimer.expiryTime': { $lte: new Date() },
-      status: 'playing'
-    }), 'Error finding games with expired disconnection timers');
-  }
+  // findWithExpiredDisconnectionTimers removed - immediate disconnection handling
 
   async save(game: GameDocument): Promise<GameDocument> {
     return this.executeOrThrow(() => game.save(), 'Error saving game');
@@ -48,6 +43,13 @@ export class GameRepository extends BaseRepository implements IGameRepository {
 
   async deleteById(gameId: string): Promise<boolean> {
     return this.executeOrThrow(async () => (await Game.deleteOne({ gameId })).deletedCount > 0, 'Error deleting game by ID');
+  }
+
+  async deleteAllByPlayerId(playerId: string): Promise<number> {
+    return this.executeOrThrow(async () => {
+      const result = await Game.deleteMany(this.playerGameQuery(playerId));
+      return result.deletedCount || 0;
+    }, 'Error deleting games by player ID');
   }
 
   async findCompletedByPlayerId(playerId: string): Promise<GameDocument[]> {

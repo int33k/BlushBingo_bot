@@ -1,8 +1,10 @@
 import { Server, Socket } from 'socket.io';
 import { logger } from '../../../config';
-import { gameService, gameCreationService, gamePlayService } from '../../game';
-import { RequestRematchEventData, GameCreateEventData, GameJoinEventData, GameMoveEventData, MarkLineEventData } from '../../../types/socketTypes';
+import { gameService, gameCreationService, gamePlayService, gameConnectionService } from '../../game';
+import { playerConnectionService } from '../../player';
+import { RequestRematchEventData, GameCreateEventData, GameJoinEventData, GameMoveEventData, MarkLineEventData, GameDisconnectEventData } from '../../../types/socketTypes';
 import { validatePlayerAuth, validateSocketGameParams, handleSocketValidationError, handleSocketError } from '../../../utils/math';
+import { generateStatusMessage } from '../../../utils/gameLogic';
 
 // Higher-order function for common handler patterns
 const createHandler = <T>(
@@ -61,11 +63,41 @@ const gameOps = {
     const playerData = getPlayerData(socket, data);
     if (!gameId || !playerData) throw new Error('Validation failed');
 
-    const game = await gameCreationService.joinGame(gameId, playerData);
+    // First check if this is a rejoining player
+    const existingGame = await gameService.getGameById(gameId);
+    const existingRole = existingGame.players.challenger?.playerId === playerData.identifier ? 'challenger' :
+                        existingGame.players.acceptor?.playerId === playerData.identifier ? 'acceptor' : null;
+    
+    let game;
+    if (existingRole) {
+      // Player is rejoining - use reconnection logic instead of join
+      logger.info(`Player ${playerData.identifier} rejoining game ${gameId} as ${existingRole}`);
+      game = await gameConnectionService.handleReconnection(gameId, playerData.identifier);
+    } else {
+      // New player joining
+      game = await gameCreationService.joinGame(gameId, playerData);
+    }
+    
     joinGameRoom(socket, gameId);
     game.updateStatusMessage();
 
-    io.to(gameId).emit('game:playerJoined', { game, playerId: playerData.identifier });
+    // Send player-specific status messages to each player
+    const socketsInRoom = await io.in(gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        // Generate player-specific status message
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('game:playerJoined', { 
+          game: playerSpecificGame, 
+          playerId: playerData.identifier 
+        });
+      }
+    }
+    
     return game;
   }
 };
@@ -83,6 +115,42 @@ const gamePlayOps = {
       : Promise.reject(new Error('Numbers array is required')),
 
   claimBingo: (params: any) => gamePlayService.claimBingo(params.gameId, params.playerId)
+};
+
+// Handle game disconnection
+const handleGameDisconnectEvent = async (socket: Socket, io: Server, data: GameDisconnectEventData) => {
+  try {
+    const params = validateSocketGameParams(socket, data);
+    if (!params) return;
+
+    // Handle disconnection similar to socket disconnect
+    const [, game] = await Promise.all([
+      playerConnectionService.handleDisconnection(params.playerId),
+      gameConnectionService.handleDisconnection(params.gameId, params.playerId)
+    ]);
+    
+    // Send player-specific status messages to each player in the room
+    const socketsInRoom = await io.in(params.gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        // Generate player-specific status message and game state
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('player:disconnected', { 
+          game: playerSpecificGame, 
+          playerId: params.playerId, 
+          reconnectionTimeout: 60 
+        });
+      }
+    }
+    
+    logger.info(`Game disconnection handled: ${params.playerId} from ${params.gameId}`);
+  } catch (error) {
+    handleSocketValidationError(socket, error as Error, 'game:disconnect');
+  }
 };
 
 // Generic handler for game play operations
@@ -151,7 +219,8 @@ export const gameEventHandlers = {
   'game:move': createGamePlayHandler('move', 'game:updated'),
   'game:markLine': createGamePlayHandler('markLine', 'game:updated'),
   'game:claimBingo': createGamePlayHandler('claimBingo', 'game:bingoClaimedBy'),
-  'game:requestRematch': handleRematch
+  'game:requestRematch': handleRematch,
+  'game:disconnect': handleGameDisconnectEvent
 };
 
 export const {
@@ -162,3 +231,5 @@ export const {
   'game:claimBingo': handleClaimBingo,
   'game:requestRematch': handleRequestRematch
 } = gameEventHandlers;
+
+export const handleGameDisconnectExport = gameEventHandlers['game:disconnect'];

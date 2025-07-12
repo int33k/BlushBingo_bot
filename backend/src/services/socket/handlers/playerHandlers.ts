@@ -4,6 +4,7 @@ import { logger } from '../../../config';
 import { playerGameService, playerConnectionService } from '../../player';
 import { SocketEventHandler, PlayerReadyEventData } from '../../../types/socketTypes';
 import { validateSocketGameParams, handleSocketError } from '../../../utils/math';
+import { generateStatusMessage } from '../../../utils/gameLogic';
 
 // Ultra-compact player ready handler with inline validation and error handling
 const handlePlayerReadyStatus = async (socket: Socket, io: Server, data: PlayerReadyEventData, callback?: (response: any) => void) => {
@@ -18,10 +19,26 @@ const handlePlayerReadyStatus = async (socket: Socket, io: Server, data: PlayerR
     await playerConnectionService.associateWithGame(params.playerId, params.gameId, socket.data.name || data.name);
     const game = await playerGameService.setPlayerReady(params.gameId, params.playerId, card || null);
 
-    game.updateStatusMessage();
-    io.to(params.gameId).emit('player:readyStatus', { game, playerId: params.playerId, ready: true });
+    // Send player-specific status messages to each player
+    const socketsInRoom = await io.in(params.gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        // Generate player-specific status message
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('player:readyStatus', { 
+          game: playerSpecificGame, 
+          playerId: params.playerId, 
+          ready: true 
+        });
+      }
+    }
+    
     game?.status === 'playing' && io.to(params.gameId).emit('game:started', { game });
-    callback?.({ game });
+    callback?.({ game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
     logger.info(`Player ${params.playerId} is ready in game ${params.gameId}`);
   } catch (error) {
     callback ? callback({ error: error instanceof Error ? error.message : 'An unexpected error occurred' }) : handleSocketError(error, socket, 'player ready');

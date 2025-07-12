@@ -4,7 +4,7 @@
  */
 
 // Core game status types
-export type GameStatus = 'waiting' | 'lobby' | 'playing' | 'completed';
+export type GameStatus = 'waiting' | 'lobby' | 'playing' | 'completed' | 'expired';
 export type PlayerStatus = 'waiting' | 'ready' | 'playing' | 'disconnected';
 export type PlayerRole = 'challenger' | 'acceptor';
 export type WinReason = 'bingo' | 'disconnection' | 'forfeit';

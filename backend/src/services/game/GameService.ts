@@ -8,6 +8,7 @@ import { findPlayerRole, updateLastActivity, isPlayerTurn } from '../../utils/ga
 import { generateRandomCard } from '../../utils/cardUtils';
 import { Game } from '../../models/Game';
 import { logger } from '../../config';
+import { gameCleanupService } from '../cleanup/GameCleanupService';
 
 export class GameService implements IGameService, IGameCreationService, IGamePlayService, IGameConnectionService {
   constructor(private repository: IGameRepository = gameRepository) {}
@@ -50,9 +51,36 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
     const { playerRole, player } = findPlayerRole(game, playerId);
     if (!player) throw createPlayerNotFoundError({ gameId, playerId });
     if (requiresTurn && !isPlayerTurn(game, playerRole)) throw createNotYourTurnError({ gameId, playerId });
+    
+    // Store original state for delta calculation and completion check
+    const originalMoveCount = game.moves?.length || 0;
+    const wasCompleted = game.status === 'completed';
+    
     const result = await operation(game, playerRole, player);
     updateLastActivity(game);
     await this.repository.save(game);
+
+    // Schedule deletion if game just became completed
+    if (!wasCompleted && game.status === 'completed') {
+      gameCleanupService.scheduleGameDeletion(gameId);
+      logger.info(`Game ${gameId} completed - scheduled for deletion in 30 seconds`);
+    }
+    
+    // Only emit new moves instead of full game state for better performance
+    const newMoves = game.moves?.slice(originalMoveCount) || [];
+    if (newMoves.length > 0) {
+      // Emit delta update instead of full game object
+      const io = require('../../index').io;
+      if (io) {
+        io.to(gameId).emit('game:move-update', { 
+          gameId, 
+          newMoves,
+          currentTurn: game.currentTurn,
+          status: game.status
+        });
+      }
+    }
+    
     return result;
   }
 
@@ -66,6 +94,13 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
   // ===== Game Creation Methods =====
   async createGame(playerData: Partial<IPlayer>) {
     const { playerId, name } = this.extractPlayerData(playerData, 'Player 1');
+    
+    // Clean up any existing games for this player before creating a new one
+    const deletedCount = await this.repository.deleteAllByPlayerId(playerId);
+    if (deletedCount > 0) {
+      logger.info(`Cleaned up ${deletedCount} existing games for player ${playerId} before creating new game`);
+    }
+    
     const game = new Game({
       gameId: await this.generateUniqueGameId(), status: 'waiting',
       players: { challenger: this.createPlayerObject(playerId, name) },
@@ -79,6 +114,13 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
     const game = await this.getGameById(gameId);
     if (game.players.acceptor) throw createGameFullError({ gameId });
     const { playerId, name } = this.extractPlayerData(playerData, 'Player 2');
+    
+    // Clean up any existing games for this player before joining a new one
+    const deletedCount = await this.repository.deleteAllByPlayerId(playerId);
+    if (deletedCount > 0) {
+      logger.info(`Cleaned up ${deletedCount} existing games for player ${playerId} before joining game ${gameId}`);
+    }
+    
     game.players.acceptor = { ...this.createPlayerObject(playerId, name), username: name };
     game.status = 'lobby';
     game.addConnectedPlayer(playerId);
@@ -155,10 +197,14 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
 
   async markLine(gameId: string, playerId: string, numbers: number[]) {
     return this.executeGameOperation(gameId, playerId, (game, role) => {
-      this.validateNumbers(gameId, playerId, numbers).forEach(n => game.recordMove(role, n));
-      const prev = game.currentTurn;
-      game.switchTurn();
-      console.log(`🎮 Line mark: ${prev} -> ${game.currentTurn} (${numbers.length} moves)`);
+      // Validate numbers but don't record moves - marking a line is not individual moves
+      this.validateNumbers(gameId, playerId, numbers);
+      
+      // Mark the cells for the line without adding to move history
+      numbers.forEach(n => game.markCellForBothPlayers(n));
+      
+      // DON'T switch turns - marking a line is just marking completed cells, not a game action
+      console.log(`🎮 Line marked: ${numbers.length} cells marked for both players (turn stays: ${game.currentTurn})`);
       game.checkCompletedLines(role);
       return game;
     }, true);
@@ -178,9 +224,28 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
   async handleDisconnection(gameId: string, playerId: string) {
     try {
       return this.executeGameOperation(gameId, playerId, (game, role, player) => {
+        console.log(`[DEBUG] Before disconnection - Player ${playerId} connected status:`, player.connected);
         player.connected = false;
+        player.status = 'disconnected'; // Set status to disconnected
+        console.log(`[DEBUG] After disconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         game.removeConnectedPlayer(playerId);
-        if (game.status === 'playing') game.startDisconnectionTimer(playerId, role, 60);
+        
+        // Check if lobby is now empty and schedule cleanup
+        const remainingConnected = game.connectedPlayers?.length || 0;
+        if (remainingConnected === 0) {
+          // Schedule immediate cleanup for empty lobbies (5 seconds to allow for quick reconnections)
+          gameCleanupService.scheduleGameDeletion(gameId, 5000);
+          logger.info(`Game ${gameId} scheduled for cleanup - no players connected`);
+        }
+        
+        // Immediate game ending on disconnection during playing state
+        if (game.status === 'playing') {
+          const opponentRole = role === 'challenger' ? 'acceptor' : 'challenger';
+          game.endGame(opponentRole, 'disconnection');
+          logger.info(`Game ${gameId} ended immediately due to ${playerId} disconnection - opponent wins`);
+          // Note: Game completion cleanup will be handled by executeGameOperation
+        }
+        
         logger.info(`Player ${playerId} disconnected from ${gameId}`);
         return game;
       });
@@ -192,35 +257,46 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
 
   async handleReconnection(gameId: string, playerId: string) {
     try {
-      return this.executeGameOperation(gameId, playerId, (game, _, player) => {
+      const result = await this.executeGameOperation(gameId, playerId, (game, role, player) => {
+        console.log(`[DEBUG] Before reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         player.connected = true;
+        
+        // Restore appropriate status based on game state
+        if (game.status === 'waiting' || game.status === 'lobby') {
+          // In lobby, restore to waiting or ready based on whether they have a card
+          player.status = player.card ? 'ready' : 'waiting';
+        } else if (game.status === 'playing') {
+          player.status = 'playing';
+        }
+        
+        console.log(`[DEBUG] After reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         game.addConnectedPlayer(playerId);
-        if (game.disconnectionTimer?.playerId === playerId) game.clearDisconnectionTimer();
-        logger.info(`Player ${playerId} reconnected to ${gameId}`);
+        
+        // Cancel any scheduled cleanup since someone reconnected
+        gameCleanupService.cancelScheduledCleanup(gameId);
+        
+        logger.info(`Player ${playerId} reconnected to ${gameId} with status ${player.status}`);
         return game;
       });
+      
+      // Force emit to all clients to ensure status is updated
+      const io = require('../../index').io;
+      if (io) {
+        io.to(gameId).emit('game:player-status-update', {
+          gameId,
+          playerId,
+          connected: true,
+          status: result.players.challenger?.playerId === playerId ? result.players.challenger.status : result.players.acceptor?.status
+        });
+      }
+      
+      return result;
     } catch (error) {
       logger.error(`Reconnection error: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
 
-  async checkExpiredDisconnectionTimers() {
-    try {
-      const games = await this.repository.findWithExpiredDisconnectionTimers();
-      return Promise.all(games.filter(g => g.disconnectionTimer).map(async game => {
-        const { playerId, role } = game.disconnectionTimer!;
-        game.endGame(role === 'challenger' ? 'acceptor' : 'challenger', 'disconnection');
-        game.clearDisconnectionTimer();
-        updateLastActivity(game);
-        await this.repository.save(game);
-        logger.info(`Game ${game.gameId} ended: ${playerId} timeout`);
-        return game;
-      }));
-    } catch (error) {
-      logger.error(`Timer check error: ${error instanceof Error ? error.message : String(error)}`);
-      return [];
-    }
-  }
+  // Disconnection timer checking removed - games end immediately on disconnect
 }
 

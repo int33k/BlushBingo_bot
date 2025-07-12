@@ -10,11 +10,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": "./src",
+    "allowSyntheticDefaultImports": true,    "baseUrl": "./src",
     "paths": {
       "*": ["*"],
-      "@shared/*": ["../../shared/*"]
+      "@b3/shared": ["../../shared"],
+      "@b3/shared/*": ["../../shared/*"]
     },
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },

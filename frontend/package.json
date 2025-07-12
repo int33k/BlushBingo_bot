@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@b3/shared": "file:../shared",
     "core-js-pure": "^3.42.0",
     "prop-types": "^15.8.1",
     "react": "^19.1.0",

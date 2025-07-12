@@ -13,3 +13,8 @@ const createHook = <T>(context: React.Context<T | undefined>, name: string) => (
 export const useGame = createHook(GameContext, 'useGame');
 export const useSocket = createHook(SocketContext, 'useSocket');
 export const useUser = createHook(UserContext, 'useUser');
+
+// Export new modular hooks
+export { useGameLogic } from './useGameLogic';
+export { useSocketHandler } from './useSocketHandler';
+export { useNavigationHandler } from './useNavigationHandler';

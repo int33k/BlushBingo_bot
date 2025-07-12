@@ -3,7 +3,7 @@
  * Eliminates validation duplication between frontend and backend
  */
 
-import { CARD_SIZE, CARD_RANGE } from '../constants/game';
+import { CARD_RANGE } from '../constants/game';
 
 // Validation result interface
 export interface ValidationResult {

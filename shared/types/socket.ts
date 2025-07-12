@@ -76,6 +76,11 @@ export interface RequestRematchEventData {
   playerId: string;
 }
 
+export interface GameDisconnectEventData {
+  gameId: string;
+  playerId: string;
+}
+
 export interface ReconnectEventData {
   gameId: string;
   playerId?: string;

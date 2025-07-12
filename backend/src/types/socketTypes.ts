@@ -12,6 +12,7 @@ import {
   MarkLineEventData,
   ClaimBingoEventData,
   RequestRematchEventData,
+  GameDisconnectEventData,
   AuthEventData,
   ReconnectEventData
 } from '../../../shared/types/socket';
@@ -25,6 +26,7 @@ export {
   MarkLineEventData,
   ClaimBingoEventData,
   RequestRematchEventData,
+  GameDisconnectEventData,
   AuthEventData,
   ReconnectEventData
 };

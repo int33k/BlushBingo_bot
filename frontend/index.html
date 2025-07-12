@@ -16,6 +16,23 @@
       #root {
         width: 100%;
         height: 100vh;
+        /* Critical styles to prevent FOUC in Edge/Telegram browsers */
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+      #root.loaded {
+        opacity: 1;
+      }
+      /* Ensure backdrop-filter works in Edge */
+      .backdrop-blur-sm {
+        /* Vendor prefix MUST come before standard property for Edge */
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+      }
+      .backdrop-blur-md {
+        /* Vendor prefix MUST come before standard property for Edge */
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
       }
     </style>
   </head>

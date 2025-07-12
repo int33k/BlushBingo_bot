@@ -12,17 +12,27 @@ interface UserProviderProps {
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // Ultra-compact user initialization
+  // User initialization with logging
   useEffect(() => {
     const storedUser = localStorage.getItem('bingoUser');
     const forceNewUser = new URLSearchParams(window.location.search).get('newuser') === 'true';
+    
+    console.log('Initializing user context:', { storedUser: !!storedUser, forceNewUser });
 
     if (storedUser && !forceNewUser) {
-      try { setUser(JSON.parse(storedUser)); }
-      catch { localStorage.removeItem('bingoUser'); }
+      try { 
+        const parsedUser = JSON.parse(storedUser);
+        console.log('Using stored user:', parsedUser);
+        setUser(parsedUser); 
+      }
+      catch (err) { 
+        console.error('Failed to parse stored user:', err);
+        localStorage.removeItem('bingoUser'); 
+      }
     } else {
       const identifier = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       const newUser: User = { identifier, name: `Player_${identifier.slice(-5)}`, isAuthenticated: true };
+      console.log('Created new user:', newUser);
       setUser(newUser);
       localStorage.setItem('bingoUser', JSON.stringify(newUser));
       if (forceNewUser) window.history.replaceState({}, '', window.location.pathname + window.location.hash);

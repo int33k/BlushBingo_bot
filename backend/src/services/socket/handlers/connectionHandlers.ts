@@ -8,6 +8,7 @@ import { playerConnectionService } from '../../player';
 import { gameConnectionService } from '../../game';
 import { AuthEventData, ReconnectEventData } from '../../../types/socketTypes';
 import { handleSocketError, handleSocketValidationError } from '../../../utils/math';
+import { generateStatusMessage } from '../../../utils/gameLogic';
 
 // Ultra-compact connection handler factory with inline operations
 const createConnectionHandler = <T>(op: (socket: Socket, io: Server, data: T) => Promise<any>, eventName: string, successEvent?: string, errorEvent?: string) =>
@@ -44,10 +45,29 @@ const reconnectOp = async (socket: Socket, io: Server, data: ReconnectEventData)
 
   socket.data.gameId = gameId;
   socket.join(gameId);
+  
+  // Send player-specific status messages to each player in the room
+  const socketsInRoom = await io.in(gameId).fetchSockets();
+  for (const roomSocket of socketsInRoom) {
+    const socketPlayerId = roomSocket.data.identifier;
+    if (socketPlayerId) {
+      // Generate player-specific status message and game state
+      const playerSpecificGame = { 
+        ...game.toObject(), 
+        statusMessage: generateStatusMessage(game, socketPlayerId) 
+      };
+      roomSocket.emit('player:reconnected', { 
+        game: playerSpecificGame, 
+        playerId, 
+        success: true 
+      });
+    }
+  }
+  
+  // Also send specific events to the reconnecting player
   await Promise.all([
-    io.to(gameId).emit('player:reconnected', { game, playerId, success: true }),
-    socket.emit('game:state', { game, success: true }),
-    socket.emit('connection:reconnect:success', { success: true, game })
+    socket.emit('game:state', { game: { ...game.toObject(), statusMessage: generateStatusMessage(game, playerId) }, success: true }),
+    socket.emit('connection:reconnect:success', { success: true, game: { ...game.toObject(), statusMessage: generateStatusMessage(game, playerId) } })
   ]);
   return game;
 };
@@ -62,7 +82,25 @@ const disconnectOp = async (socket: Socket, io: Server) => {
       playerConnectionService.handleDisconnection(playerId),
       gameConnectionService.handleDisconnection(gameId, playerId)
     ]);
-    io.to(gameId).emit('player:disconnected', { game, playerId, reconnectionTimeout: 60 });
+    
+    // Send player-specific status messages to each player in the room
+    const socketsInRoom = await io.in(gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        // Generate player-specific status message and game state
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('player:disconnected', { 
+          game: playerSpecificGame, 
+          playerId, 
+          reconnectionTimeout: 60 
+        });
+      }
+    }
+    
     logger.info(`Disconnection handled: ${playerId} from ${gameId}`);
   } catch (error) {
     logger.error(`Disconnection error: ${error instanceof Error ? error.message : String(error)}`, { socketId: socket.id, gameId, playerId, timestamp: new Date().toISOString() });

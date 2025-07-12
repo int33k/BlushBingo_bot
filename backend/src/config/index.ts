@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import winston from 'winston';
 import path from 'path';
 import mongoose from 'mongoose';
+import { CARD_SIZE, CARD_RANGE, BINGO_LETTERS, DEFAULT_REQUIRED_LINES_FOR_BINGO } from '@b3/shared';
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ const config = Object.freeze({
   game: {
     board: { size: 5, letters: ['B', 'I', 'N', 'G', 'O'] },
     players: { min: 2, max: 2, roles: ['challenger', 'acceptor'] },
-    timing: { disconnectionTimeoutSeconds: n('DISCONNECTION_TIMEOUT', 60), moveTimeoutSeconds: n('MOVE_TIMEOUT', 30), gameExpiryHours: 24 },
+    timing: { moveTimeoutSeconds: n('MOVE_TIMEOUT', 30) },
     rules: { requiredLinesForBingo: 5, autoStartWhenAllReady: true, allowRematch: true },
     card: { size: 5, minValue: 1, maxValue: 25 }
   },

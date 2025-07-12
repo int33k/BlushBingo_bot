@@ -6,8 +6,8 @@
 export * from './game/logic';
 
 // Type definitions
-export * from './types/game';
-export * from './types/socket';
+export type * from './types/game';
+export type * from './types/socket';
 
 // Constants
 export * from './constants/game';

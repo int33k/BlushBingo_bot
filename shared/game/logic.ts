@@ -15,11 +15,11 @@ export interface LinePattern {
   cells: CellPosition[];
 }
 
-// Helper function to create line patterns
-function createLinePatterns(): LinePattern[] {
+// Pre-computed static line patterns for better performance
+const STATIC_LINE_PATTERNS: LinePattern[] = (() => {
   const patterns: LinePattern[] = [];
   
-  // Rows
+  // Rows - pre-computed
   for (let i = 0; i < CARD_SIZE; i++) {
     const cells: CellPosition[] = [];
     for (let j = 0; j < CARD_SIZE; j++) {
@@ -28,7 +28,7 @@ function createLinePatterns(): LinePattern[] {
     patterns.push({ cells });
   }
   
-  // Columns
+  // Columns - pre-computed
   for (let i = 0; i < CARD_SIZE; i++) {
     const cells: CellPosition[] = [];
     for (let j = 0; j < CARD_SIZE; j++) {
@@ -37,14 +37,14 @@ function createLinePatterns(): LinePattern[] {
     patterns.push({ cells });
   }
   
-  // Main diagonal
+  // Main diagonal - pre-computed
   const mainDiag: CellPosition[] = [];
   for (let i = 0; i < CARD_SIZE; i++) {
     mainDiag.push({ row: i, col: i });
   }
   patterns.push({ cells: mainDiag });
   
-  // Anti-diagonal
+  // Anti-diagonal - pre-computed
   const antiDiag: CellPosition[] = [];
   for (let i = 0; i < CARD_SIZE; i++) {
     antiDiag.push({ row: i, col: CARD_SIZE - 1 - i });
@@ -52,6 +52,11 @@ function createLinePatterns(): LinePattern[] {
   patterns.push({ cells: antiDiag });
   
   return patterns;
+})();
+
+// Helper function to create line patterns
+function createLinePatterns(): LinePattern[] {
+  return STATIC_LINE_PATTERNS;
 }
 
 // Optimized line patterns - consolidated from frontend GamePage.tsx
@@ -85,7 +90,13 @@ export const isLineComplete = (line: number[], markedCells: Array<string | numbe
     markedLookup[markedCells[i]] = true;
   }
   
-  return line.every(cell => markedLookup[cell]);
+  // Check all cells in line with O(1) lookup
+  for (let i = 0; i < line.length; i++) {
+    if (!markedLookup[line[i]]) {
+      return false;
+    }
+  }
+  return true;
 };
 
 export const checkCompletedLines = (card: number[][], markedCells: Array<string | number>) => {

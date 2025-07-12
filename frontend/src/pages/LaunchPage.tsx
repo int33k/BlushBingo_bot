@@ -4,142 +4,418 @@ import { useSocket, useGame } from '../hooks';
 import { NotificationBanner } from '../components/NotificationBanner';
 import type { Notification } from '../types';
 
-// Constants - Ultra-compact data structures
-const [SPARKLES, NUMBERS, BOTTOM_NUMS] = [['sparkle1', 'sparkle2', 'sparkle3'], [{ val: '7', color: '#60A5FA', shadow: 'rgba(59, 130, 246, 0.5)' }, { val: '12', color: '#EF4444', shadow: 'rgba(239, 68, 68, 0.5)' }], [{ val: '15', color: '#4ADE80', shadow: 'rgba(74, 222, 128, 0.5)' }, { val: '3', color: '#EF4444', shadow: 'rgba(239, 68, 68, 0.5)' }]] as const;
+// Simplified constants for faster loading
+const NUMBERS = [
+  { val: '7', color: '#60A5FA', shadow: '#60A5FA30' }, 
+  { val: '12', color: '#EF4444', shadow: '#EF444430' }
+];
+const BOTTOM_NUMS = [
+  { val: '15', color: '#4ADE80', shadow: '#4ADE8030' }, 
+  { val: '3', color: '#EF4444', shadow: '#EF444430' }
+];
 
 const LaunchPage: React.FC = () => {
   const navigate = useNavigate();
   const { gameId: joinGameId } = useParams();
   const { isConnected, isReconnecting } = useSocket();
-  const { createGame, joinGame } = useGame();
-  const [state, setState] = useState({ challengeCode: '', animationOffset: 0, notification: null as Notification | null, isLoading: false });
+  const { createGame, joinGame, leaveGame } = useGame();
+  const [state, setState] = useState({ 
+    challengeCode: joinGameId || '', 
+    animationOffset: 0, 
+    notification: null as Notification | null, 
+    isLoading: false,
+    hasAttemptedJoin: false 
+  });
 
-  // Consolidated effects & handlers
-  useEffect(() => { const interval = setInterval(() => setState(s => ({ ...s, animationOffset: s.animationOffset + 0.03 })), 16); return () => clearInterval(interval); }, []);
+  // Clear game state - non-blocking
   useEffect(() => {
-    if (!joinGameId || !isConnected || state.isLoading) return;
-    setState(s => ({ ...s, challengeCode: joinGameId, isLoading: true }));
-    joinGame(joinGameId).then((res: any) => res.success ? navigate(`/lobby/${joinGameId}`) : setState(s => ({ ...s, notification: { message: res.error || 'Failed to join game', type: 'error' }, isLoading: false }))).catch((err: any) => setState(s => ({ ...s, notification: { message: (err as Error).message || 'Failed to join game', type: 'error' }, isLoading: false })));
-  }, [joinGameId, isConnected, state.isLoading, joinGame, navigate]);
+    if (leaveGame) leaveGame();
+  }, [leaveGame]);
 
-  const [animatedTransform, showNotification, handleInputChange] = [
-    useCallback((offset: number) => `translate(${Math.sin(state.animationOffset + offset) * 3}px, ${Math.cos(state.animationOffset + offset) * 3}px)`, [state.animationOffset]),
-    useCallback((message: string, type: Notification['type']) => setState(s => ({ ...s, notification: { message, type } })), []),
-    useCallback((e: React.ChangeEvent<HTMLInputElement>) => setState(s => ({ ...s, challengeCode: e.target.value })), [])
-  ];
+  // Delayed animation to not block initial render
+  useEffect(() => { 
+    let interval: number;
+    const timer = setTimeout(() => {
+      interval = setInterval(() => 
+        setState(s => ({ ...s, animationOffset: s.animationOffset + 0.03 })), 16);
+    }, 200);
+    
+    return () => {
+      clearTimeout(timer);
+      if (interval) clearInterval(interval);
+    };
+  }, []);
 
-  const [handleCreateGame, handleJoinGame] = [
-    useCallback(async () => {
-      if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
-      setState(s => ({ ...s, isLoading: true }));
-      try {
-        const response = await createGame();
-        if (response.success) {
-          const challengeLink = `${window.location.origin}/#/join/${response.gameId}`;
-          try {
-            await navigator.clipboard.writeText(challengeLink);
-            showNotification('Challenge link copied to clipboard!', 'success');
-          } catch {
-            showNotification('Game created! Share code: ' + response.gameId, 'success');
-          }
-          navigate(`/lobby/${response.gameId}`);
+  // Handle auto-join - simplified logic
+  useEffect(() => {
+    if (!joinGameId || !isConnected || state.isLoading || state.hasAttemptedJoin) return;
+    
+    setState(s => ({ ...s, challengeCode: joinGameId, isLoading: true, hasAttemptedJoin: true }));
+    
+    joinGame(joinGameId)
+      .then((res: { success: boolean; error?: string }) => {
+        if (res.success) {
+          navigate(`/lobby/${joinGameId}`);
         } else {
-          showNotification(response.error || 'Failed to create game', 'error');
+          setState(s => ({ 
+            ...s, 
+            notification: { message: res.error || 'Failed to join game', type: 'error' }, 
+            isLoading: false 
+          }));
         }
-      } catch (error) {
-        showNotification((error as Error).message || 'Failed to create game', 'error');
-      } finally {
-        setState(s => ({ ...s, isLoading: false }));
-      }
-    }, [isConnected, createGame, navigate, showNotification]),
-    useCallback(async (gameIdToJoin?: string) => {
-      const codeToUse = gameIdToJoin || state.challengeCode.trim();
-      if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
-      if (!codeToUse) return showNotification('Please enter a challenge code', 'warning');
-      setState(s => ({ ...s, isLoading: true }));
-      try {
-        const response = await joinGame(codeToUse);
-        if (response.success) {
-          navigate(`/lobby/${codeToUse}`);
-        } else {
-          showNotification(response.error || 'Failed to join game', 'error');
-        }
-      } catch (error) {
-        showNotification((error as Error).message || 'Failed to join game', 'error');
-      } finally {
-        setState(s => ({ ...s, isLoading: false }));
-      }
-    }, [state.challengeCode, isConnected, joinGame, navigate, showNotification])
-  ];
+      })
+      .catch((err: Error) => {
+        setState(s => ({ 
+          ...s, 
+          notification: { message: err.message || 'Failed to join game', type: 'error' }, 
+          isLoading: false 
+        }));
+      });
+  }, [joinGameId, isConnected, state.isLoading, state.hasAttemptedJoin, joinGame, navigate]);
 
-  // Memoized styles
+  // Simplified handlers - remove heavy computations
+  const showNotification = useCallback((message: string, type: Notification['type']) => 
+    setState(s => ({ ...s, notification: { message, type } })), []);
+    
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => 
+    setState(s => ({ ...s, challengeCode: e.target.value })), []);
+
+  const handleCreateGame = useCallback(async () => {
+    console.log('Create button clicked, connected status:', isConnected);
+    if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
+    
+    setState(s => ({ ...s, isLoading: true }));
+    console.log('Setting loading state to true');
+    
+    try {
+      console.log('Calling createGame()');
+      const response = await createGame();
+      console.log('Create game response:', response);
+      
+      if (response.success) {
+        const challengeLink = `${window.location.origin}/#/join/${response.gameId}`;
+        console.log('Game created successfully, challenge link:', challengeLink);
+        try {
+          await navigator.clipboard.writeText(challengeLink);
+          // showNotification('Challenge link copied to clipboard!', 'success');
+        } catch (error) {
+          console.error('Failed to copy to clipboard:', error);
+          showNotification('Game created! Share code: ' + response.gameId, 'success');
+        }
+        navigate(`/lobby/${response.gameId}`);
+      } else {
+        console.error('Game creation failed with response:', response);
+        showNotification(response.error || 'Failed to create game', 'error');
+      }
+    } catch (error) {
+      console.error('Error creating game:', error);
+      showNotification((error as Error).message || 'Failed to create game', 'error');
+    } finally {
+      setState(s => ({ ...s, isLoading: false }));
+    }
+  }, [isConnected, createGame, navigate, showNotification]);
+
+  const handleJoinGame = useCallback(async (gameIdToJoin?: string) => {
+    const codeToUse = gameIdToJoin || state.challengeCode.trim();
+    if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
+    if (!codeToUse) return showNotification('Please enter a challenge code', 'warning');
+    setState(s => ({ ...s, isLoading: true }));
+    try {
+      const response = await joinGame(codeToUse);
+      if (response.success) {
+        navigate(`/lobby/${codeToUse}`);
+      } else {
+        showNotification(response.error || 'Failed to join game', 'error');
+      }
+    } catch (error) {
+      showNotification((error as Error).message || 'Failed to join game', 'error');
+    } finally {
+      setState(s => ({ ...s, isLoading: false }));
+    }
+  }, [state.challengeCode, isConnected, joinGame, navigate, showNotification]);
+
+  // Animation helper function
+  const animatedTransform = useCallback((index: number) => {
+    const offset = state.animationOffset + index * 0.5;
+    return `translate(${Math.sin(offset) * 3}px, ${Math.cos(offset) * 3}px)`;
+  }, [state.animationOffset]);
+
+  // Enhanced styles with premium typography and visual improvements
   const styles = useMemo(() => ({
-    container: 'min-h-screen bg-black text-white flex flex-col items-center justify-between p-4 overflow-hidden',
-    content: 'w-full max-w-md flex flex-col items-center h-full justify-between',
+    container: 'h-screen bg-gradient-to-br from-slate-900 via-black to-purple-900 text-white flex flex-col items-center p-4 overflow-hidden relative',
+    content: 'w-full max-w-sm flex flex-col items-center h-full relative z-10',
+    logoSection: 'flex-1 flex flex-col items-center justify-center w-full relative',
     logo: 'relative w-full flex flex-col items-center',
-    circles: 'flex justify-between w-full my-6',
-    circle: 'flex items-center justify-center w-20 h-20 rounded-full bg-transparent relative border-2',
-    title: 'flex flex-col items-center mb-6',
-    titleText: 'text-6xl font-bold tracking-wide text-pink-500 text-center leading-none m-0',
-    underline: 'w-64 h-1 bg-pink-500 transform -rotate-2 my-2',
-    input: 'w-full bg-black/80 text-white p-4 text-lg border-2 border-red-500 rounded-lg outline-none',
-    button: 'w-full py-5 bg-black/80 text-red-500 text-xl font-bold border-2 border-red-500 rounded-lg mt-2 transition-all duration-300 cursor-pointer hover:bg-red-800 hover:text-white hover:scale-105'
+    circles: 'flex justify-between w-full my-8',
+    circle: 'flex items-center justify-center w-20 h-20 rounded-full bg-transparent relative border-2 backdrop-blur-sm',
+    title: 'flex flex-col items-center mb-8 relative',
+    titleText: 'text-6xl font-black tracking-wider text-pink-500 text-center leading-none m-0 relative select-none',
+    underline: 'absolute bg-gradient-to-r from-pink-500 via-pink-400 to-pink-500',
+    inputSection: 'w-full pb-3 mt-auto space-y-3',
+    input: 'w-full bg-slate-900/90 backdrop-blur-sm text-white p-4 text-lg border-2 border-red-500/70 rounded-xl outline-none transition-all duration-300 focus:border-red-400 focus:bg-slate-800/90 focus:shadow-lg focus:shadow-red-500/20',
+    button: 'w-full py-5 bg-gradient-to-r from-red-600/20 to-pink-600/20 backdrop-blur-sm text-red-400 text-xl font-bold border-2 border-red-500/70 rounded-xl transition-all duration-300 cursor-pointer hover:from-red-600/40 hover:to-pink-600/40 hover:border-red-400 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/30 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed'
   }), []);
 
   return (
     <div className={styles.container}>
+      {/* Animated background particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-pink-400/30 rounded-full animate-pulse"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+              animationDuration: `${3 + Math.random() * 2}s`,
+              transform: `translate(${Math.sin(state.animationOffset + i) * 2}px, ${Math.cos(state.animationOffset + i) * 2}px)`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Notification and reconnection banners */}
       {state.notification && <NotificationBanner {...state.notification} onClose={() => setState(s => ({ ...s, notification: null }))} />}
-      {isReconnecting && <div className="fixed top-0 left-0 right-0 z-40"><div className="bg-orange-600 text-white text-center py-2 text-sm">Reconnecting to game server...</div></div>}
-
-      <div className={styles.content}>
-        <div className={styles.logo}>
-          {/* Top Numbers */}
-          <div className={styles.circles}>
-            {NUMBERS.map((num, i) => (
-              <div key={i} className={styles.circle} style={{ borderColor: num.color, transform: animatedTransform(i), boxShadow: `0 0 12px ${num.shadow}` }}>
-                <span className="text-5xl font-bold" style={{ color: num.color, textShadow: `0 0 8px ${num.color}` }}>{num.val}</span>
-              </div>
-            ))}
+      {isReconnecting && (
+        <div className="fixed top-0 left-0 right-0 z-40">
+          <div className="bg-orange-600 text-white text-center py-2 text-sm font-medium">
+            Reconnecting to game server...
           </div>
-
-          {/* Main Logo */}
-          <div className={styles.title}>
-            <h1 className={styles.titleText} style={{ textShadow: '0 0 7px #FF1493' }}>BLUSH</h1>
-            <div className={styles.underline} style={{ filter: 'drop-shadow(0 0 6px #FF1493)' }} />
-            <h1 className={styles.titleText} style={{ textShadow: '0 0 7px #FF1493' }}>BINGO</h1>
-          </div>
-
-          {/* Bottom Numbers & Heart */}
-          <div className={styles.circles}>
-            <div className={styles.circle} style={{ borderColor: BOTTOM_NUMS[0].color, transform: animatedTransform(2), boxShadow: `0 0 12px ${BOTTOM_NUMS[0].shadow}` }}>
-              <span className="text-5xl font-bold" style={{ color: BOTTOM_NUMS[0].color, textShadow: `0 0 6px ${BOTTOM_NUMS[0].color}` }}>{BOTTOM_NUMS[0].val}</span>
-              <div className="absolute inset-0 border-2 rounded-full opacity-50 blur-sm" style={{ borderColor: BOTTOM_NUMS[0].color }} />
-            </div>
-            <div className="relative w-20 h-20 flex items-center justify-center" style={{ transform: `${animatedTransform(3)} rotate(-45deg) scale(1.15)` }}>
-              <svg width="150%" height="150%" viewBox="0 0 24 24" fill="none">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="#EF4444" strokeWidth="1.1" fill="transparent" style={{ filter: 'drop-shadow(0 0 1.2px #EF4444)' }} />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-4xl font-bold text-red-500" style={{ textShadow: '0 0 5px #EF4444', transform: 'rotate(37deg)' }}>3</span>
-              </div>
-              <div className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full" style={{ boxShadow: '0 0 5px #EF4444' }} />
-              <div className="absolute top-1 right-3 w-1 h-1 bg-red-500 rounded-full" style={{ boxShadow: '0 0 5px #EF4444' }} />
-            </div>
-          </div>
-
-          {/* Sparkles */}
-          {SPARKLES.map((className) => (
-            <div key={className} className={`absolute text-yellow-400 ${className === 'sparkle1' ? 'top-1/3 left-1/4 text-2xl' : className === 'sparkle2' ? 'top-1/3 right-1/4 text-3xl' : 'top-2/5 right-1/4 text-xl'}`} style={{ transform: `translate(${Math.sin(state.animationOffset + 2.5) * 4}px, ${Math.cos(state.animationOffset + 2.5) * 4}px)`, textShadow: '0 0 6px #facc15' }}>✦</div>
-          ))}
         </div>
+      )}
 
-        {/* Input and Button */}
-        <div className="w-full px-2 mt-4">
-          <div className="mb-2" style={{ boxShadow: '0 0 4px #EF4444' }}>
-            <input type="text" placeholder="Enter challenge code" value={state.challengeCode} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handleJoinGame()} className={styles.input} disabled={state.isLoading} />
+      {/* Loading overlay for actions */}
+      {state.isLoading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-slate-800/90 rounded-xl p-6 text-center space-y-4">
+            <div className="animate-spin w-8 h-8 border-4 border-pink-400/30 border-t-pink-400 rounded-full mx-auto"></div>
+            <div className="text-pink-400 font-medium">
+              {joinGameId ? 'Joining game...' : 'Creating game...'}
+            </div>
           </div>
-          <button onClick={handleCreateGame} className={styles.button} style={{ boxShadow: '0 0 4px #EF4444', textShadow: '0 0 4px #EF4444' }} disabled={state.isLoading || !isConnected}>
-            {state.isLoading ? 'Creating...' : 'Create Challenge'}
+        </div>
+      )}      <div className={styles.content}>
+        <div className={styles.logoSection}>
+          <div className={styles.logo}>
+            {/* Top Numbers with enhanced glow */}
+            <div className={styles.circles}>
+              {NUMBERS.map((num, i) => (
+                <div 
+                  key={i} 
+                  className={styles.circle} 
+                  style={{ 
+                    borderColor: num.color, 
+                    transform: animatedTransform(i), 
+                    boxShadow: `0 0 20px ${num.shadow}, inset 0 0 20px ${num.shadow}` 
+                  }}
+                >
+                  <span 
+                    className="text-5xl font-black" 
+                    style={{ 
+                      color: num.color, 
+                      textShadow: `0 0 12px ${num.color}, 0 0 24px ${num.color}`,
+                      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                    }}
+                  >
+                    {num.val}
+                  </span>
+                  <div 
+                    className="absolute inset-0 border-2 rounded-full opacity-30 blur-sm" 
+                    style={{ borderColor: num.color }} 
+                  />
+                </div>
+              ))}
+            </div>            {/* Enhanced Main Logo with premium typography */}
+            <div className={styles.title}>
+              <h1 
+                className={styles.titleText} 
+                style={{ 
+                  textShadow: '0 0 10px #FF1493, 0 0 20px #FF149350, 0 0 30px #FF149320',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                BLUSH
+                {/* Sparkle 1 - Over B of BLUSH (top-left) */}
+                <span 
+                  className="absolute text-yellow-400 text-2xl pointer-events-none"
+                  style={{ 
+                    left: '-8px',
+                    top: '-12px',
+                    transform: `translate(${Math.sin(state.animationOffset) * 4}px, ${Math.cos(state.animationOffset) * 4}px)`, 
+                    textShadow: '0 0 8px #facc15, 0 0 16px #facc15',
+                    filter: 'drop-shadow(0 0 4px #facc15)'
+                  }}
+                >
+                  ✦
+                </span>
+                {/* Sparkle 2 - Over H of BLUSH (top-right) */}
+                <span 
+                  className="absolute text-yellow-400 text-3xl pointer-events-none"
+                  style={{ 
+                    right: '-8px',
+                    top: '-12px',
+                    transform: `translate(${Math.sin(state.animationOffset + 0.8) * 4}px, ${Math.cos(state.animationOffset + 0.8) * 4}px)`, 
+                    textShadow: '0 0 8px #facc15, 0 0 16px #facc15',
+                    filter: 'drop-shadow(0 0 4px #facc15)'
+                  }}
+                >
+                  ✦
+                </span>
+              </h1>              {/* Enhanced decorative line with gradient glow */}
+              <div 
+                className={styles.underline} 
+                style={{ 
+                  filter: 'drop-shadow(0 0 8px #FF1493) drop-shadow(0 0 16px #FF149350)',
+                  background: 'linear-gradient(90deg, #FF1493, #FF69B4, #FF1493)',
+                  width: '234px',  // Wider than title width
+                  height: '5px',   // Make it thicker for visibility
+                  left: '-8px',   // Start before the B
+                  top: '71px',     // Position between BLUSH and BINGO   
+                  transform: 'rotate(-4.5deg)', // Tilt towards top-right
+                  transformOrigin: 'left center', // Rotate from left side
+                  borderRadius: '2px'
+                }} 
+              />
+              <h1 
+                className={styles.titleText} 
+                style={{ 
+                  textShadow: '0 0 10px #FF1493, 0 0 20px #FF149350, 0 0 30px #FF149320',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                BINGO
+                {/* Sparkle 3 - Bottom-right of O in BINGO */}
+                <span 
+                  className="absolute text-yellow-400 text-xl pointer-events-none"
+                  style={{ 
+                    right: '-4px',
+                    bottom: '-8px',
+                    transform: `translate(${Math.sin(state.animationOffset + 1.6) * 4}px, ${Math.cos(state.animationOffset + 1.6) * 4}px)`, 
+                    textShadow: '0 0 8px #facc15, 0 0 16px #facc15',
+                    filter: 'drop-shadow(0 0 4px #facc15)'
+                  }}
+                >
+                  ✦
+                </span>
+              </h1>
+            </div>            {/* Enhanced Bottom Numbers & Heart */}
+            <div className={styles.circles} style={{ position: 'relative' }}>
+              <div 
+                className={styles.circle} 
+                style={{ 
+                  borderColor: BOTTOM_NUMS[0].color, 
+                  transform: animatedTransform(2), 
+                  boxShadow: `0 0 20px ${BOTTOM_NUMS[0].shadow}, inset 0 0 20px ${BOTTOM_NUMS[0].shadow}` 
+                }}
+              >
+                <span 
+                  className="text-5xl font-black" 
+                  style={{ 
+                    color: BOTTOM_NUMS[0].color, 
+                    textShadow: `0 0 12px ${BOTTOM_NUMS[0].color}, 0 0 24px ${BOTTOM_NUMS[0].color}`,
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                  }}
+                >
+                  {BOTTOM_NUMS[0].val}
+                </span>
+                <div className="absolute inset-0 border-2 rounded-full opacity-30 blur-sm" style={{ borderColor: BOTTOM_NUMS[0].color }} />
+              </div>
+              {/* Empty space for heart positioning */}
+              <div style={{ width: '80px', height: '80px', position: 'relative' }}>
+                <div 
+                  style={{ 
+                    position: 'absolute',
+                    top: '55%',
+                    left: '50%',
+                    transform: `translate(-50%, -50%) ${animatedTransform(3)} rotate(-45deg) scale(1.15)`,
+                    width: '80px',
+                    height: '80px'
+                  }}
+                >
+                  <svg 
+                    width="80" 
+                    height="80" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    style={{ display: 'block' }}
+                  >
+                    <path 
+                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" 
+                      stroke="#EF4444" 
+                      strokeWidth="1.1" 
+                      fill="transparent" 
+                    />
+                  </svg>
+                  <span 
+                    className="text-4xl font-black text-red-500" 
+                    style={{ 
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%) rotate(37deg)',
+                      textShadow: '0 0 8px #EF4444, 0 0 16px #EF444450', 
+                      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                    }}
+                  >
+                    3
+                  </span>
+                  <div 
+                    className="w-2 h-2 bg-red-500 rounded-full animate-pulse" 
+                    style={{ 
+                      position: 'absolute',
+                      top: '0px', 
+                      right: '8px',
+                      boxShadow: '0 0 4px #EF4444'
+                    }} 
+                  />
+                  <div 
+                    className="w-1 h-1 bg-red-500 rounded-full animate-pulse" 
+                    style={{ 
+                      position: 'absolute',
+                      top: '4px', 
+                      right: '24px',
+                      boxShadow: '0 0 3px #EF4444', 
+                      animationDelay: '0.5s'
+                    }} 
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Heart positioned absolutely outside the flex container */}
+            
+          </div>
+        </div>        {/* Enhanced Input and Button - Always at bottom */}
+        <div className={styles.inputSection}>
+          <div className="relative">
+            <input 
+              type="text" 
+              id="challenge-code-input"
+              name="challengeCode"
+              placeholder="Enter challenge code" 
+              value={state.challengeCode} 
+              onChange={handleInputChange} 
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinGame()} 
+              className={styles.input} 
+              disabled={state.isLoading} 
+            />
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-500/10 via-transparent to-red-500/10 pointer-events-none" />
+          </div>
+          <button 
+            type="button"
+            onClick={handleCreateGame} 
+            className={styles.button} 
+            disabled={state.isLoading || !isConnected}
+          >
+            <span className="relative z-10 flex items-center justify-center space-x-2">
+                <>
+                  <span>Create Challenge</span>
+                </>
+            </span>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-500/5 via-pink-500/5 to-red-500/5 pointer-events-none" />
           </button>
         </div>
       </div>

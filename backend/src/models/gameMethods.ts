@@ -16,6 +16,10 @@ const bothReady = (players: any) => players.challenger?.status === 'ready' && pl
 export const areBothPlayersReady = function(this: GameDocument) { return bothReady(this.players); };
 
 export const startGame = function(this: GameDocument) {
+  // Set both players status to 'playing'
+  if (this.players.challenger) this.players.challenger.status = 'playing';
+  if (this.players.acceptor) this.players.acceptor.status = 'playing';
+  
   return Object.assign(this, {
     status: 'playing',
     lookupTable: this.players.challenger?.card && this.players.acceptor?.card ?

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 interface BingoCardProps {
   card?: number[][];
@@ -31,11 +31,15 @@ const BingoCard: React.FC<BingoCardProps> = ({
     const currentValue = newCard[row][col];
 
     if (currentValue === 0) {
+      // Optimized number finding with Set for O(1) lookups
       const usedNumbers = new Set<number>();
-      card.forEach(row => row.forEach(cell => {
-        if (cell > 0) usedNumbers.add(cell);
-      }));
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          if (card[r][c] > 0) usedNumbers.add(card[r][c]);
+        }
+      }
 
+      // Find first available number efficiently
       for (let i = 1; i <= 25; i++) {
         if (!usedNumbers.has(i)) {
           newCard[row][col] = i;
@@ -53,10 +57,13 @@ const BingoCard: React.FC<BingoCardProps> = ({
   const autoFillCard = () => {
     if (!isEditable) return;
 
+    // Optimized with single pass for used numbers
     const usedNumbers = new Set<number>();
-    card.forEach(row => row.forEach(cell => {
-      if (cell > 0) usedNumbers.add(cell);
-    }));
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 5; col++) {
+        if (card[row][col] > 0) usedNumbers.add(card[row][col]);
+      }
+    }
 
     const availableNumbers = [];
     for (let i = 1; i <= 25; i++) {
@@ -65,7 +72,7 @@ const BingoCard: React.FC<BingoCardProps> = ({
       }
     }
 
-    // Shuffle
+    // Fisher-Yates shuffle - optimized
     for (let i = availableNumbers.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [availableNumbers[i], availableNumbers[j]] = [availableNumbers[j], availableNumbers[i]];
@@ -87,13 +94,14 @@ const BingoCard: React.FC<BingoCardProps> = ({
     onCardChange?.(newCard);
   };
 
-  const isCardComplete = () => {
+  // Memoized validation functions for better performance
+  const isCardComplete = useMemo(() => {
     return card.every(row => row.every(cell => cell > 0));
-  };
+  }, [card]);
 
-  const getEmptyCellsCount = () => {
+  const getEmptyCellsCount = useMemo(() => {
     return card.flat().filter(cell => cell === 0).length;
-  };
+  }, [card]);
 
   return (
     <div className={`bingo-card-container ${className}`}>
@@ -120,16 +128,17 @@ const BingoCard: React.FC<BingoCardProps> = ({
 
       {isEditable && (
         <div className="mt-2 flex flex-col gap-2">
-          {!isCardComplete() && (
+          {!isCardComplete && (
             <button
+              type="button"
               onClick={autoFillCard}
               className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors text-sm"
             >
-              {getEmptyCellsCount() === 25 ? 'Auto-fill Card' : 'Auto-fill Remaining'}
+              {getEmptyCellsCount === 25 ? 'Auto-fill Card' : 'Auto-fill Remaining'}
             </button>
           )}
 
-          {isCardComplete() && (
+          {isCardComplete && (
             <div className="text-center text-green-400 font-semibold text-sm">
               Card Complete! You can now mark yourself as ready.
             </div>

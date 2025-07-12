@@ -28,7 +28,7 @@ export interface IGameService {
   // Connection operations
   handleDisconnection(gameId: string, playerId: string): Promise<GameDocument>;
   handleReconnection(gameId: string, playerId: string): Promise<GameDocument>;
-  checkExpiredDisconnectionTimers(): Promise<GameDocument[]>;
+  // checkExpiredDisconnectionTimers removed - immediate disconnection handling
 }
 
 // Keep these interfaces for backward compatibility
@@ -39,4 +39,4 @@ export interface IGamePlayService extends Pick<IGameService,
   'makeMove' | 'markLine' | 'claimBingo'> {}
 
 export interface IGameConnectionService extends Pick<IGameService,
-  'findActiveGameByPlayerId' | 'handleDisconnection' | 'handleReconnection' | 'checkExpiredDisconnectionTimers'> {}
+  'findActiveGameByPlayerId' | 'handleDisconnection' | 'handleReconnection'> {}

@@ -41,26 +41,23 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
   };
 
   return (
-    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4`}>
-      <div className={`${getTypeStyles()} border-l-4 p-4 rounded-r-lg shadow-lg`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              {type === 'success' && <span className="text-xl">✓</span>}
-              {type === 'error' && <span className="text-xl">✗</span>}
-              {type === 'warning' && <span className="text-xl">⚠</span>}
-              {type === 'info' && <span className="text-xl">ℹ</span>}
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium">{message}</p>
-            </div>
-          </div>
+    <div className="fixed top-4 left-4 right-4 z-50">
+      <div className={`${getTypeStyles()} border-l-4 p-4 rounded-r-lg shadow-lg max-w-2xl mx-auto`}>
+        <div className="flex items-start">
           <button
+            type="button"
             onClick={onClose}
-            className="ml-4 text-lg hover:opacity-75 transition-opacity"
+            className="flex-shrink-0 mr-3 text-xl hover:opacity-75 transition-opacity cursor-pointer"
+            aria-label="Close notification"
           >
-            ×
+            {type === 'success' && '✓'}
+            {type === 'error' && '✗'}
+            {type === 'warning' && '⚠'}
+            {type === 'info' && 'ℹ'}
           </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium break-words">{message}</p>
+          </div>
         </div>
       </div>
     </div>

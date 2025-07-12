@@ -52,12 +52,20 @@ export class PlayerService implements IPlayerService {
       await this.repository.save(player);
 
       // Auto-reconnect optimization with conditional chaining
-      if (!explicitGameId) {
+      // Only auto-reconnect if there's no explicit game ID (to avoid race conditions with manual joins)
+      if (!explicitGameId && wasDisconnected) {
         const activeGame = await gameConnectionService.findActiveGameByPlayerId(playerId);
-        activeGame && wasDisconnected && (
-          await gameConnectionService.handleReconnection(activeGame.gameId, playerId),
-          logger.info(`Player ${playerId} auto-reconnected to game ${activeGame.gameId}`)
-        );
+        if (activeGame) {
+          // Small delay to allow explicit join events to be processed first
+          setTimeout(async () => {
+            try {
+              await gameConnectionService.handleReconnection(activeGame.gameId, playerId);
+              logger.info(`Player ${playerId} auto-reconnected to game ${activeGame.gameId}`);
+            } catch (error) {
+              logger.debug(`Auto-reconnection failed for ${playerId}, likely joined explicitly: ${error}`);
+            }
+          }, 100); // 100ms delay
+        }
       }
       return (logger.info(`Player ${playerId} connected with socket ${socketId}`), player);
     }, 'Error handling player connection');
