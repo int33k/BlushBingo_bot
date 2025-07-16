@@ -20,32 +20,38 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   onFinish,
   isNavigating = false
 }) => {
+  console.log('[DEBUG] PlayerSelectionOverlay rendered with props:', {
+    currentPlayer: currentPlayer?.name,
+    opponent: opponent?.name,
+    firstPlayerId,
+    isNavigating
+  });
+  
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(true);
-  const [showOverlay, setShowOverlay] = useState(true);
 
   const players = [currentPlayer, opponent];
 
   useEffect(() => {
+    console.log('[DEBUG] PlayerSelectionOverlay useEffect starting');
     let switchCount = 0;
     const maxSwitches = 6;
     
     const switchPlayer = () => {
+      console.log('[DEBUG] switchPlayer called, switchCount:', switchCount);
       if (switchCount >= maxSwitches) {
         // Stop animation and show final selection
+        console.log('[DEBUG] Animation complete, showing final selection');
         setIsAnimating(false);
         const finalIndex = firstPlayerId === currentPlayer.id ? 0 : 1;
         setSelectedIndex(finalIndex);
         
         // Close overlay after showing result
         setTimeout(() => {
+          console.log('[DEBUG] Calling onFinish callback');
           if (onFinish) onFinish();
-          // Only hide overlay if not navigating (navigation will handle hiding)
-          if (!isNavigating) {
-            setTimeout(() => {
-              setShowOverlay(false);
-            }, 100);
-          }
+          // Don't hide overlay here - let parent component handle it
+          // The navigation logic in parent will handle hiding
         }, 2000);
         return;
       }
@@ -59,12 +65,17 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
     };
 
     // Start animation after a brief delay
+    console.log('[DEBUG] Starting animation timer');
     const timer = setTimeout(switchPlayer, 500);
     
-    return () => clearTimeout(timer);
+    return () => {
+      console.log('[DEBUG] Cleaning up animation timer');
+      clearTimeout(timer);
+    };
   }, [firstPlayerId, currentPlayer.id, onFinish, isNavigating]);
 
-  if (!showOverlay && !isNavigating) return null;
+  // Always show the overlay when component is mounted
+  // Parent component controls when to mount/unmount this component
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900/95 via-purple-900/90 to-slate-900/95 flex items-center justify-center z-50 backdrop-blur-sm p-4">

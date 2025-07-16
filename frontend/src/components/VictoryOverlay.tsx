@@ -237,7 +237,7 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
                   ? 'from-teal-400 via-green-400 to-yellow-400'
                   : 'from-purple-400 via-pink-400 to-red-400'
               }`}>
-                {isWinner ? '🏆 VICTORY! 🏆' : '� DEFEAT'}
+                {isWinner ? '🏆 VICTORY! 🏆' : '🥀 DEFEAT 🥀'}
               </h1>
               
               <div className="space-y-2">

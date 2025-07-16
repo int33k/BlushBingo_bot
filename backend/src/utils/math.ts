@@ -55,13 +55,22 @@ export const handleSocketError = (error: any, socket: any, context?: string): vo
   socket.emit('error', { code: appError.code, message: appError.message, details: appError.details });
 };
 
-// Health check utilities with ultra-compact implementation
+// Health check utilities with production-friendly logging
 export const checkDatabaseHealth = async (): Promise<boolean> => {
   try {
     const { connection } = mongoose;
     if (connection.readyState !== 1 || !connection.db) return logger.warn('Database health check failed: Not connected'), false;
     const result = await connection.db.admin().ping();
-    return result?.ok === 1 ? (logger.debug('Database health check passed'), true) : (logger.warn('Database health check failed: Ping unsuccessful'), false);
+    if (result?.ok === 1) {
+      // Only log success in development
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('Database health check passed');
+      }
+      return true;
+    } else {
+      logger.warn('Database health check failed: Ping unsuccessful');
+      return false;
+    }
   } catch (error) {
     return logger.error(`Database health check error: ${error instanceof Error ? error.message : String(error)}`), false;
   }
@@ -74,17 +83,26 @@ export const checkSystemHealth = async () => {
   return { status: dbHealth ? 'healthy' : 'unhealthy', database: dbHealth, uptime: process.uptime(), memory: { used, total, percentUsed: Math.round((used / total) * 100) } };
 };
 
-export const startHealthChecks = (intervalMs = 60000): NodeJS.Timeout => (
-  logger.info(`Starting periodic health checks every ${intervalMs / 1000} seconds`),
-  setInterval(async () => {
+export const startHealthChecks = (intervalMs = 60000): NodeJS.Timeout => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const interval = isProd ? 300000 : intervalMs; // 5 minutes in prod, 1 minute in dev
+  
+  logger.info(`Starting health checks every ${interval / 1000} seconds`);
+  
+  return setInterval(async () => {
     try {
       const health = await checkSystemHealth();
-      health.status !== 'healthy' ? logger.warn(`System health check failed: ${JSON.stringify(health)}`) : logger.debug(`System health check passed: ${JSON.stringify(health)}`);
+      if (health.status !== 'healthy') {
+        logger.warn(`System health check failed: ${JSON.stringify(health)}`);
+      } else if (!isProd) {
+        // Only log successful checks in development
+        logger.debug(`System health check passed: ${JSON.stringify(health)}`);
+      }
     } catch (error) {
       logger.error(`Error in health check: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }, intervalMs)
-);
+  }, interval);
+};
 
 // Socket validators with ultra-compact exports
 export const validatePlayerAuth = validate<string>((s, d) => s.data.identifier || d?.identifier, 'Player identifier is required. Please authenticate first.', ErrorCode.AUTHENTICATION_FAILED);

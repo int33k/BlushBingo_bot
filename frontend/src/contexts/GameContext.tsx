@@ -7,7 +7,12 @@ import { GameContext } from './GameContextDefinition';
 type SocketResponse = { game?: Game; error?: string; message?: string };
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, setState] = useState({ currentGame: null as Game | null, isLoading: false, error: null as string | null });
+  const [state, setState] = useState({ 
+    currentGame: null as Game | null, 
+    isLoading: false, 
+    isReadyLoading: false,
+    error: null as string | null 
+  });
   const { socket, isConnected, emit, on } = useSocket();
   const { user } = useUser();
 
@@ -15,18 +20,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const createHandler = useCallback((action?: () => void) => (data: unknown) => {
     const { game, error, message } = data as SocketResponse;
     if (game) { 
-      console.log(`[DEBUG] GameContext received game update:`, {
-        gameId: game.gameId,
-        status: game.status,
-        statusMessage: game.statusMessage,
-        challengerStatus: game.players?.challenger?.status,
-        acceptorStatus: game.players?.acceptor?.status
-      });
-      
       // Only update changed fields to avoid unnecessary re-renders
       setState(s => {
         if (!s.currentGame || s.currentGame.gameId !== game.gameId) {
-          console.log(`[DEBUG] Setting new current game:`, game.gameId);
           return { ...s, currentGame: game };
         }
         // Merge only if there are actual changes
@@ -38,16 +34,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                           (s.currentGame.moves?.length || 0) !== (game.moves?.length || 0);
         
         if (hasChanges) {
-          console.log(`[DEBUG] Game state has changes, updating:`, {
-            oldStatusMessage: s.currentGame.statusMessage,
-            newStatusMessage: game.statusMessage,
-            oldChallengerStatus: s.currentGame.players?.challenger?.status,
-            newChallengerStatus: game.players?.challenger?.status,
-            oldAcceptorStatus: s.currentGame.players?.acceptor?.status,
-            newAcceptorStatus: game.players?.acceptor?.status
-          });
-        } else {
-          console.log(`[DEBUG] No changes detected, skipping update`);
+          return { ...s, currentGame: { ...s.currentGame, ...game } };
         }
         
         return hasChanges ? { ...s, currentGame: { ...s.currentGame, ...game } } : s;
@@ -117,9 +104,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }],
     ['game:rematchAccepted', (data: unknown) => {
-      const { newGameId, newGame } = data as { newGameId?: string; newGame?: Game };
-      if (newGameId && newGame) {
-        setState(s => ({ ...s, currentGame: newGame, error: null }));
+      const { newGameId } = data as { newGameId?: string };
+      if (newGameId) {
+        // Clear current game state before navigating to new game
+        setState(s => ({ ...s, currentGame: null, error: null }));
         window.location.href = `/lobby/${newGameId}`;
       }
     }],
@@ -132,7 +120,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [isConnected, socket, on, eventConfig]);
 
   // Enhanced async operation wrapper with better error handling and logging
-  const executeSocketOperation = useCallback(async (event: string, data: Record<string, unknown> = {}, timeout = 10000): Promise<GameResponse> => {
+  const executeSocketOperation = useCallback(async (event: string, data: Record<string, unknown> = {}, timeout = 5000, useReadyLoading = false): Promise<GameResponse> => {
     console.log(`Executing socket operation: ${event}`, data);
     
     if (!user) {
@@ -145,29 +133,31 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('Socket not connected, please try again');
     }
     
-    setState(s => ({ ...s, isLoading: true, error: null }));
-    console.log('Setting game state to loading');
+    if (useReadyLoading) {
+      setState(s => ({ ...s, isReadyLoading: true, error: null }));
+    } else {
+      setState(s => ({ ...s, isLoading: true, error: null }));
+    }
 
     return new Promise<GameResponse>((resolve, reject) => {
       const timer = setTimeout(() => {
-        console.error(`Socket operation ${event} timed out after ${timeout}ms`);
         reject(new Error('Request timeout - server did not respond'));
       }, timeout);
       
-      console.log(`Emitting ${event} with user:`, user.identifier);
       emit(event, { ...data, identifier: user.identifier, name: user.name }, (response: unknown) => {
         clearTimeout(timer);
-        console.log(`Response received for ${event}:`, response);
-        setState(s => ({ ...s, isLoading: false }));
+        if (useReadyLoading) {
+          setState(s => ({ ...s, isReadyLoading: false }));
+        } else {
+          setState(s => ({ ...s, isLoading: false }));
+        }
         
         const { game, error } = response as SocketResponse;
         if (error) { 
-          console.error(`Socket operation ${event} failed with error:`, error);
           setState(s => ({ ...s, error })); 
           reject(new Error(error)); 
         }
         else if (game) {
-          console.log(`Socket operation ${event} succeeded with game:`, game.gameId);
           // Optimized state update - only update if game data actually changed
           setState(s => {
             const gameChanged = !s.currentGame || 
@@ -180,13 +170,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           resolve({ success: true, game, gameId: game.gameId });
         }
         else {
-          console.error(`Socket operation ${event} received invalid response:`, response);
           reject(new Error('Invalid response from server'));
         }
       });
-    }).catch(err => { 
-      console.error(`Caught error in socket operation ${event}:`, err);
-      setState(s => ({ ...s, isLoading: false, error: (err as Error).message })); 
+    }).catch(err => {
+      if (useReadyLoading) {
+        setState(s => ({ ...s, isReadyLoading: false, error: (err as Error).message }));
+      } else {
+        setState(s => ({ ...s, isLoading: false, error: (err as Error).message }));
+      }
       throw err; 
     });
   }, [user, isConnected, emit]);

@@ -81,7 +81,7 @@ const gameOps = {
     joinGameRoom(socket, gameId);
     game.updateStatusMessage();
 
-    // Send player-specific status messages to each player
+    // Send player-specific status messages to each player in the room
     const socketsInRoom = await io.in(gameId).fetchSockets();
     for (const roomSocket of socketsInRoom) {
       const socketPlayerId = roomSocket.data.identifier;
@@ -115,6 +115,128 @@ const gamePlayOps = {
       : Promise.reject(new Error('Numbers array is required')),
 
   claimBingo: (params: any) => gamePlayService.claimBingo(params.gameId, params.playerId)
+};
+
+// Higher-order function for game play handlers
+const createGamePlayHandler = (operation: keyof typeof gamePlayOps, responseEvent: string) => 
+  async (socket: Socket, io: Server, data: any, callback?: (response: any) => void) => {
+    try {
+      const params = validateSocketGameParams(socket, data);
+      if (!params) return;
+
+      const game = await gamePlayOps[operation](params, data);
+      
+      // Send updated game state to all players in the room
+      const socketsInRoom = await io.in(params.gameId).fetchSockets();
+      for (const roomSocket of socketsInRoom) {
+        const socketPlayerId = roomSocket.data.identifier;
+        if (socketPlayerId) {
+          // Generate player-specific status message
+          const playerSpecificGame = { 
+            ...game.toObject(), 
+            statusMessage: generateStatusMessage(game, socketPlayerId) 
+          };
+          roomSocket.emit(responseEvent, { 
+            game: playerSpecificGame, 
+            playerId: params.playerId 
+          });
+        }
+      }
+
+      callback?.({ game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
+      logger.info(`${operation} completed for ${params.playerId} in game ${params.gameId}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
+      callback ? callback({ error: errorMsg }) : handleSocketError(error, socket, operation);
+    }
+  };
+
+// Handle rematch request
+const handleRematch = async (socket: Socket, io: Server, data: RequestRematchEventData, callback?: (response: any) => void) => {
+  try {
+    const params = validateSocketGameParams(socket, data);
+    if (!params) return;
+
+    const { game, rematchGame } = await gameService.requestRematch(params.gameId, params.playerId);
+    
+    if (rematchGame) {
+      // Both players accepted - emit rematch accepted event with new game ID
+      const socketsInRoom = await io.in(params.gameId).fetchSockets();
+      for (const roomSocket of socketsInRoom) {
+        const socketPlayerId = roomSocket.data.identifier;
+        if (socketPlayerId) {
+          // Join the new game room
+          roomSocket.join(rematchGame.gameId);
+          
+          // Emit rematch accepted with new game ID
+          roomSocket.emit('game:rematchAccepted', { 
+            newGameId: rematchGame.gameId,
+            playerId: params.playerId 
+          });
+        }
+      }
+      
+      callback?.({ game: { ...rematchGame.toObject(), statusMessage: generateStatusMessage(rematchGame, params.playerId) } });
+      logger.info(`Rematch accepted - new game ${rematchGame.gameId} created from ${params.gameId}`);
+    } else {
+      // Only one player has requested rematch so far
+      const socketsInRoom = await io.in(params.gameId).fetchSockets();
+      for (const roomSocket of socketsInRoom) {
+        const socketPlayerId = roomSocket.data.identifier;
+        if (socketPlayerId) {
+          const playerSpecificGame = { 
+            ...game.toObject(), 
+            statusMessage: generateStatusMessage(game, socketPlayerId) 
+          };
+          roomSocket.emit('game:rematchRequested', { 
+            game: playerSpecificGame, 
+            playerId: params.playerId 
+          });
+        }
+      }
+      
+      callback?.({ game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
+      logger.info(`Rematch requested by ${params.playerId} in game ${params.gameId}`);
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
+    callback ? callback({ error: errorMsg }) : handleSocketError(error, socket, 'rematch');
+  }
+};
+
+// Handle player leaving game
+const handlePlayerLeaving = async (socket: Socket, io: Server, data: GameDisconnectEventData, callback?: (response: any) => void) => {
+  try {
+    const params = validateSocketGameParams(socket, data);
+    if (!params) return;
+
+    const [, game] = await Promise.all([
+      playerConnectionService.handleDisconnection(params.playerId),
+      gameConnectionService.handleDisconnection(params.gameId, params.playerId)
+    ]);
+    
+    // Send player-specific status messages to each player in the room
+    const socketsInRoom = await io.in(params.gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('player:left', { 
+          game: playerSpecificGame, 
+          playerId: params.playerId 
+        });
+      }
+    }
+    
+    callback?.({ success: true });
+    logger.info(`Player leaving handled: ${params.playerId} from ${params.gameId}`);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
+    callback ? callback({ error: errorMsg }) : handleSocketError(error, socket, 'playerLeaving');
+  }
 };
 
 // Handle game disconnection
@@ -153,62 +275,36 @@ const handleGameDisconnectEvent = async (socket: Socket, io: Server, data: GameD
   }
 };
 
-// Generic handler for game play operations
-const createGamePlayHandler = (operation: keyof typeof gamePlayOps, emitEvent: string) =>
-  async (socket: Socket, io: Server, data: any) => {
-    try {
-      const params = validateSocketGameParams(socket, data);
-      if (!params) return;
-
-      const game = await gamePlayOps[operation](params, data);
-      io.to(params.gameId).emit(emitEvent, { game, playerId: params.playerId });
-      logger.info(`${operation} by ${params.playerId} in ${params.gameId}`);
-    } catch (error) {
-      handleSocketValidationError(socket, error as Error, operation);
-    }
-  };
-
-const handleRematch = async (socket: Socket, io: Server, data: RequestRematchEventData) => {
+// Handle instant win for testing
+const handleInstantWin = async (socket: Socket, io: Server, data: any, callback?: (response: any) => void) => {
   try {
     const params = validateSocketGameParams(socket, data);
     if (!params) return;
 
-    const result = await gameCreationService.requestRematch(params.gameId, params.playerId);
-
-    // Always emit rematch requested to update UI state
-    io.to(params.gameId).emit('game:rematchRequested', {
-      game: result.game,
-      requestedBy: params.playerId
-    });
-
-    // If both players have requested rematch, create new game and emit acceptance
-    if (result.rematchGame) {
-      const rematchData = {
-        originalGameId: params.gameId,
-        newGameId: result.rematchGame.gameId,
-        newGame: result.rematchGame
-      };
-
-      // Get all sockets in the original room and migrate them to the new room
-      const socketsInRoom = await io.in(params.gameId).fetchSockets();
-
-      for (const roomSocket of socketsInRoom) {
-        // Leave old room and join new room
-        roomSocket.leave(params.gameId);
-        roomSocket.join(result.rematchGame.gameId);
-        roomSocket.data.gameId = result.rematchGame.gameId;
+    const game = await gameService.instantWin(params.gameId, params.playerId);
+    
+    // Emit game completion to all players in the room
+    const socketsInRoom = await io.in(params.gameId).fetchSockets();
+    for (const roomSocket of socketsInRoom) {
+      const socketPlayerId = roomSocket.data.identifier;
+      if (socketPlayerId) {
+        const playerSpecificGame = { 
+          ...game.toObject(), 
+          statusMessage: generateStatusMessage(game, socketPlayerId) 
+        };
+        roomSocket.emit('game:bingoClaimedBy', { 
+          game: playerSpecificGame, 
+          winner: game.winner,
+          playerId: params.playerId 
+        });
       }
-
-      // Emit to original room with complete rematch data (before migration)
-      io.to(params.gameId).emit('game:rematchAccepted', rematchData);
-
-      // Also emit to new room to ensure all players receive the event
-      io.to(result.rematchGame.gameId).emit('game:rematchAccepted', rematchData);
     }
-
-    logger.info(`Rematch ${result.rematchGame ? 'accepted' : 'requested'} by ${params.playerId} in ${params.gameId}`);
+    
+    callback?.({ success: true, game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
+    logger.info(`Instant win completed by ${params.playerId} in game ${params.gameId}`);
   } catch (error) {
-    handleSocketValidationError(socket, error as Error, 'rematch');
+    const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
+    callback ? callback({ error: errorMsg }) : handleSocketError(error, socket, 'instantWin');
   }
 };
 
@@ -219,8 +315,10 @@ export const gameEventHandlers = {
   'game:move': createGamePlayHandler('move', 'game:updated'),
   'game:markLine': createGamePlayHandler('markLine', 'game:updated'),
   'game:claimBingo': createGamePlayHandler('claimBingo', 'game:bingoClaimedBy'),
+  'game:instantWin': handleInstantWin,
   'game:requestRematch': handleRematch,
-  'game:disconnect': handleGameDisconnectEvent
+  'game:disconnect': handleGameDisconnectEvent,
+  'game:playerLeaving': handlePlayerLeaving
 };
 
 export const {
@@ -233,3 +331,4 @@ export const {
 } = gameEventHandlers;
 
 export const handleGameDisconnectExport = gameEventHandlers['game:disconnect'];
+export const handlePlayerLeavingExport = gameEventHandlers['game:playerLeaving'];

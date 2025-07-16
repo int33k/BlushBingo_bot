@@ -17,26 +17,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { user } = useUser();
 
   useEffect(() => {
-    console.log('SocketContext effect running', { 
-      userAuthenticated: user?.isAuthenticated,
-      hasSocket: !!state.socket,
-      isConnecting: state.isConnecting
-    });
-    
-    if (user?.isAuthenticated && !state.socket && !state.isConnecting) {
-      console.log('Initiating socket connection for user:', user.identifier);
+    // Connect socket immediately, don't wait for user authentication
+    if (!state.socket && !state.isConnecting) {
       connect();
-    } else {
-      console.log('Skipping socket connection', { 
-        reason: !user?.isAuthenticated ? 'user not authenticated' : 
-                state.socket ? 'socket already exists' : 
-                'already connecting'
-      });
     }
     
     return () => disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.isAuthenticated]);
+  }, []);
+
+  // Send auth when user becomes available
+  useEffect(() => {
+    if (state.socket && state.isConnected && user && user.identifier) {
+      console.log('[DEBUG] Sending auth for user:', user);
+      state.socket.emit('auth', { identifier: user.identifier, name: user.name });
+    }
+  }, [user, state.socket, state.isConnected]);
 
   const connect = () => {
     if (state.socket || state.isConnecting) return;

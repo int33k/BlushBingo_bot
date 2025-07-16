@@ -24,6 +24,7 @@ export interface IGameService {
   makeMove(gameId: string, playerId: string, number: number): Promise<GameDocument>;
   markLine(gameId: string, playerId: string, numbers: number[]): Promise<GameDocument>;
   claimBingo(gameId: string, playerId: string): Promise<GameDocument>;
+  instantWin(gameId: string, playerId: string): Promise<GameDocument>; // Testing only
 
   // Connection operations
   handleDisconnection(gameId: string, playerId: string): Promise<GameDocument>;

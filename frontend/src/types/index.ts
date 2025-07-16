@@ -60,6 +60,7 @@ export interface UserContextType {
 export interface GameContextType {
   currentGame: Game | null; 
   isLoading: boolean; 
+  isReadyLoading: boolean;
   error: string | null;
   createGame: () => Promise<GameResponse>; 
   joinGame: (gameId: string) => Promise<GameResponse>;

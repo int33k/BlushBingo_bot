@@ -11,8 +11,9 @@ export const initializeSocket = (): Socket => {
   }
 
   // Get the socket URL from environment variables or use a fallback
-  // Note: Using window.location.hostname to ensure it works on any host
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || `http://${window.location.hostname}:3001`;
+  // For production/Telegram: use same origin, for development: use explicit backend port
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+    (import.meta.env.PROD ? window.location.origin : `http://${window.location.hostname}:3001`);
   console.log(`Initializing socket connection to: ${socketUrl}`);
 
   socket = io(socketUrl, {

@@ -29,18 +29,18 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
       {/* Enhanced animated background particles system */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Floating ambient particles - responsive amount */}
-        {[...Array(20)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <div
             key={`ambient-${i}`}
-            className={`absolute rounded-full ${i >= 10 ? 'hidden sm:block' : ''}`}
+            className={`absolute rounded-full ${i >= 6 ? 'hidden sm:block' : ''}`}
             style={{
-              width: `${1 + Math.random() * 3}px`,
-              height: `${1 + Math.random() * 3}px`,
+              width: `${1 + Math.random() * 2}px`,
+              height: `${1 + Math.random() * 2}px`,
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               background: `hsl(${180 + Math.random() * 60}, ${70 + Math.random() * 30}%, ${50 + Math.random() * 30}%)`,
-              animation: `enhancedFloat 8s ${Math.random() * 4}s infinite ease-in-out`,
-              opacity: 0.4 + Math.random() * 0.3
+              animation: `enhancedFloat 2.5s ${Math.random() * 1}s ease-in-out`,
+              opacity: 0.3 + Math.random() * 0.2
             }}
           />
         ))}
@@ -53,7 +53,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              animation: `shootingStar 4s ${i * 0.5}s infinite linear`,
+              animation: `shootingStar 2s ${i * 0.2}s linear`,
               transform: 'rotate(45deg)'
             }}
           />
@@ -65,7 +65,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
             key={`wave-${i}`}
             className={`absolute inset-0 border border-teal-400/10 rounded-full ${i >= 2 ? 'hidden sm:block' : ''}`}
             style={{
-              animation: `energyWave 6s ${i * 1.2}s infinite ease-out`
+              animation: `energyWave 2.5s ${i * 0.3}s ease-out`
             }}
           />
         ))}
@@ -80,7 +80,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                style={{ 
                  transform: `scale(${isComplete ? 1.2 : 0.8})`,
                  transition: 'transform 3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                 animation: isComplete ? 'victoryPulse 2s ease-in-out infinite' : 'none'
+                 animation: isComplete ? 'victoryPulse 1.5s ease-in-out' : 'none'
                }} />
           
           {/* Enhanced Letters grid with dynamic spacing */}
@@ -100,7 +100,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                     'border-white/20 shadow-slate-900/60'
                   }
                 `} style={{
-                  animation: `enhancedLetterEntrance 1.2s ${idx * 0.2}s cubic-bezier(0.34, 1.56, 0.64, 1) both`,
+                  animation: `enhancedLetterEntrance 0.3s ${idx * 0.05}s cubic-bezier(0.34, 1.56, 0.64, 1) both`,
                   boxShadow: markedLetters[idx] ? 
                     `0 0 40px rgba(20, 184, 166, 0.6), 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(20, 184, 166, 0.1)` : 
                     '0 15px 40px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.05)'
@@ -111,7 +111,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                     text-xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-wider
                     transition-all duration-700 ease-out
                     ${markedLetters[idx] ? 
-                      'bg-gradient-to-br from-teal-200 via-teal-400 to-emerald-500 bg-clip-text text-transparent animate-pulse' : 
+                      'bg-gradient-to-br from-teal-200 via-teal-400 to-emerald-500 bg-clip-text text-transparent' : 
                       'bg-gradient-to-br from-gray-200 via-gray-300 to-gray-500 bg-clip-text text-transparent'
                     }
                   `} style={{
@@ -121,7 +121,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                     filter: markedLetters[idx] ? 
                       'drop-shadow(0 0 25px rgba(20, 184, 166, 0.6)) brightness(1.1)' : 
                       'brightness(0.9)',
-                    animation: markedLetters[idx] ? 'letterGlow 2s ease-in-out infinite alternate' : 'none'
+                    animation: markedLetters[idx] ? 'letterGlow 1s ease-in-out' : 'none'
                   }}>
                     {letter}
                   </span>
@@ -143,7 +143,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                         <div className="w-10 sm:w-20 md:w-24 lg:w-28 h-2 sm:h-3 bg-gradient-to-r from-transparent via-teal-400/50 to-transparent rounded-full blur-sm"
                              style={{ 
                                transform: 'rotate(45deg)',
-                               animation: 'strikeGlow 2s ease-in-out infinite'
+                               animation: 'strikeGlow 1s ease-in-out'
                              }} />
                       </div>
                     </>
@@ -152,13 +152,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                   {/* Enhanced shimmer overlay */}
                   {markedLetters[idx] && (
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-xl sm:rounded-2xl md:rounded-3xl"
-                         style={{ animation: 'enhancedShimmer 3s infinite ease-in-out' }} />
-                  )}
-                  
-                  {/* Magnetic field effect for marked letters */}
-                  {markedLetters[idx] && (
-                    <div className="absolute inset-0 rounded-xl sm:rounded-2xl md:rounded-3xl border-2 border-teal-400/30"
-                         style={{ animation: 'magneticField 4s ease-in-out infinite' }} />
+                         style={{ animation: 'enhancedShimmer 1.5s ease-in-out' }} />
                   )}
                 </div>
                 
@@ -174,7 +168,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                           left: '50%',
                           top: '50%',
                           background: `linear-gradient(45deg, hsl(${180 + i * 15}, 70%, 60%), hsl(${200 + i * 10}, 80%, 70%))`,
-                          animation: `enhancedFloatParticle${i % 4} 4s ${i * 0.15}s infinite ease-in-out`,
+                          animation: `enhancedFloatParticle${i % 4} 2s ${i * 0.1}s ease-in-out`,
                           filter: 'drop-shadow(0 0 8px rgba(20, 184, 166, 0.6))'
                         }}
                       />
@@ -188,7 +182,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                         style={{
                           left: '50%',
                           top: '50%',
-                          animation: `sparkleEffect${i % 3} 2s ${i * 0.1}s infinite ease-out`,
+                          animation: `sparkleEffect${i % 3} 1.5s ${i * 0.05}s ease-out`,
                           opacity: 0.8
                         }}
                       />
@@ -200,11 +194,17 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                         key={`ring-${i}`}
                         className={`absolute inset-0 border border-teal-400/20 rounded-xl sm:rounded-2xl md:rounded-3xl ${i >= 1 ? 'hidden sm:block' : ''}`}
                         style={{
-                          animation: `energyRing 3s ${i * 0.5}s infinite ease-out`
+                          animation: `energyRing 1.5s ${i * 0.2}s ease-out`
                         }}
                       />
                     ))}
                   </div>
+                )}
+                
+                {/* Magnetic field effect for marked letters */}
+                {markedLetters[idx] && (
+                  <div className="absolute inset-0 rounded-xl sm:rounded-2xl md:rounded-3xl border-2 border-teal-400/30"
+                       style={{ animation: 'magneticField 2s ease-in-out' }} />
                 )}
               </div>
             ))}
@@ -213,7 +213,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
         
         {/* Enhanced BINGO! Completion Text with spectacular effects */}
         {isComplete && (
-          <div className="text-center space-y-4 sm:space-y-8 px-4 relative" style={{ animation: 'spectacularEntrance 2s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+          <div className="text-center space-y-4 sm:space-y-8 px-4 relative" style={{ animation: 'spectacularEntrance 0.8s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
             
             {/* Main BINGO text with multiple effects */}
             <div className="relative">
@@ -230,7 +230,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                   style={{ 
                     textShadow: '0 0 60px rgba(20, 184, 166, 0.8), 0 0 120px rgba(20, 184, 166, 0.4)',
                     filter: 'drop-shadow(0 0 40px rgba(20, 184, 166, 0.8)) brightness(1.2)',
-                    animation: 'prismEffect 4s ease-in-out infinite, textFloat 6s ease-in-out infinite'
+                    animation: 'prismEffect 2s ease-in-out, textFloat 2s ease-in-out'
                   }}>
                 BINGO!
               </h1>
@@ -249,11 +249,11 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
             {/* Enhanced subtitle with typewriter effect */}
             <div className="space-y-2 sm:space-y-3">
               <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-white font-bold tracking-wide"
-                 style={{ animation: 'typewriterEffect 1s ease-out 1s both' }}>
+                 style={{ animation: 'typewriterEffect 0.5s ease-out 0.8s both' }}>
                 🎉 VICTORY ACHIEVED! 🎉
               </p>
               <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-emerald-300 font-medium tracking-wide"
-                 style={{ animation: 'typewriterEffect 1s ease-out 2s both' }}>
+                 style={{ animation: 'typewriterEffect 0.5s ease-out 1.1s both' }}>
                 Line completed successfully!
               </p>
             </div>
@@ -270,7 +270,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                     top: '50%',
                     background: `hsl(${Math.random() * 360}, 80%, 60%)`,
                     borderRadius: '2px',
-                    animation: `confettiBurst${i % 8} 6s ${i * 0.05}s ease-out`,
+                    animation: `confettiBurst${i % 8} 1.5s ${0.6 + i * 0.02}s ease-out`,
                     transform: `rotate(${Math.random() * 360}deg)`
                   }}
                 />
@@ -284,7 +284,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                   style={{
                     left: `${20 + Math.random() * 60}%`,
                     top: `${20 + Math.random() * 60}%`,
-                    animation: `fireworkSparkle 3s ${i * 0.1}s infinite ease-out`,
+                    animation: `fireworkSparkle 1.4s ${0.6 + i * 0.03}s ease-out`,
                     boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)'
                   }}
                 />
@@ -298,7 +298,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                   style={{
                     left: '50%',
                     top: '50%',
-                    animation: `energyWaveExpand 4s ${i * 0.3}s infinite ease-out`
+                    animation: `energyWaveExpand 1.4s ${0.5 + i * 0.1}s ease-out`
                   }}
                 />
               ))}
@@ -311,7 +311,7 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
                   style={{
                     left: `${20 + i * 20}%`,
                     top: `${30 + i * 10}%`,
-                    animation: `floatingText 4s ${i * 0.5}s ease-out both`,
+                    animation: `floatingText 1.4s ${0.9 + i * 0.15}s ease-out both`,
                     textShadow: '0 0 10px rgba(255, 255, 0, 0.8)'
                   }}
                 >

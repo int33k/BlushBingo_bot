@@ -18,13 +18,14 @@ const LaunchPage: React.FC = () => {
   const navigate = useNavigate();
   const { gameId: joinGameId } = useParams();
   const { isConnected, isReconnecting } = useSocket();
-  const { createGame, joinGame, leaveGame } = useGame();
+  const { createGame, joinGame, leaveGame, fetchGame } = useGame();
   const [state, setState] = useState({ 
     challengeCode: joinGameId || '', 
     animationOffset: 0, 
     notification: null as Notification | null, 
     isLoading: false,
-    hasAttemptedJoin: false 
+    hasAttemptedJoin: false,
+    loadingType: null as 'create' | 'join' | null
   });
 
   // Clear game state - non-blocking
@@ -49,29 +50,29 @@ const LaunchPage: React.FC = () => {
   // Handle auto-join - simplified logic
   useEffect(() => {
     if (!joinGameId || !isConnected || state.isLoading || state.hasAttemptedJoin) return;
-    
     setState(s => ({ ...s, challengeCode: joinGameId, isLoading: true, hasAttemptedJoin: true }));
-    
-    joinGame(joinGameId)
-      .then((res: { success: boolean; error?: string }) => {
+    (async () => {
+      try {
+        const res = await joinGame(joinGameId);
         if (res.success) {
+          await fetchGame(joinGameId);
           navigate(`/lobby/${joinGameId}`);
         } else {
-          setState(s => ({ 
-            ...s, 
-            notification: { message: res.error || 'Failed to join game', type: 'error' }, 
-            isLoading: false 
+          setState(s => ({
+            ...s,
+            notification: { message: res.error || 'Failed to join game', type: 'error' },
+            isLoading: false
           }));
         }
-      })
-      .catch((err: Error) => {
-        setState(s => ({ 
-          ...s, 
-          notification: { message: err.message || 'Failed to join game', type: 'error' }, 
-          isLoading: false 
+      } catch (err) {
+        setState(s => ({
+          ...s,
+          notification: { message: (err as Error).message || 'Failed to join game', type: 'error' },
+          isLoading: false
         }));
-      });
-  }, [joinGameId, isConnected, state.isLoading, state.hasAttemptedJoin, joinGame, navigate]);
+      }
+    })();
+  }, [joinGameId, isConnected, state.isLoading, state.hasAttemptedJoin, joinGame, fetchGame, navigate]);
 
   // Simplified handlers - remove heavy computations
   const showNotification = useCallback((message: string, type: Notification['type']) => 
@@ -81,58 +82,52 @@ const LaunchPage: React.FC = () => {
     setState(s => ({ ...s, challengeCode: e.target.value })), []);
 
   const handleCreateGame = useCallback(async () => {
-    console.log('Create button clicked, connected status:', isConnected);
     if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
-    
-    setState(s => ({ ...s, isLoading: true }));
-    console.log('Setting loading state to true');
-    
+    setState(s => ({ ...s, isLoading: true, loadingType: 'create' }));
     try {
-      console.log('Calling createGame()');
       const response = await createGame();
-      console.log('Create game response:', response);
-      
       if (response.success) {
-        const challengeLink = `${window.location.origin}/#/join/${response.gameId}`;
-        console.log('Game created successfully, challenge link:', challengeLink);
-        try {
-          await navigator.clipboard.writeText(challengeLink);
-          // showNotification('Challenge link copied to clipboard!', 'success');
-        } catch (error) {
-          console.error('Failed to copy to clipboard:', error);
-          showNotification('Game created! Share code: ' + response.gameId, 'success');
-        }
-        navigate(`/lobby/${response.gameId}`);
+        const gameId = response.gameId;
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/#/join/${gameId}`);
+      } catch {
+        // ignore clipboard errors
+      }
+      // Wait for game data before navigating
+      if (typeof gameId === 'string') {
+        await fetchGame(gameId);
+        navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
+      }
       } else {
-        console.error('Game creation failed with response:', response);
         showNotification(response.error || 'Failed to create game', 'error');
       }
     } catch (error) {
-      console.error('Error creating game:', error);
       showNotification((error as Error).message || 'Failed to create game', 'error');
     } finally {
-      setState(s => ({ ...s, isLoading: false }));
+      setState(s => ({ ...s, isLoading: false, loadingType: null }));
     }
-  }, [isConnected, createGame, navigate, showNotification]);
+  }, [isConnected, createGame, fetchGame, navigate, showNotification]);
 
   const handleJoinGame = useCallback(async (gameIdToJoin?: string) => {
     const codeToUse = gameIdToJoin || state.challengeCode.trim();
     if (!isConnected) return showNotification('Not connected to server. Please try again.', 'error');
     if (!codeToUse) return showNotification('Please enter a challenge code', 'warning');
-    setState(s => ({ ...s, isLoading: true }));
+    setState(s => ({ ...s, isLoading: true, loadingType: 'join' }));
     try {
       const response = await joinGame(codeToUse);
       if (response.success) {
-        navigate(`/lobby/${codeToUse}`);
+        // Wait for game data before navigating
+        await fetchGame(codeToUse);
+        navigate(`/lobby/${codeToUse}`, { state: { fromLaunch: true } });
       } else {
         showNotification(response.error || 'Failed to join game', 'error');
       }
     } catch (error) {
       showNotification((error as Error).message || 'Failed to join game', 'error');
     } finally {
-      setState(s => ({ ...s, isLoading: false }));
+      setState(s => ({ ...s, isLoading: false, loadingType: null }));
     }
-  }, [state.challengeCode, isConnected, joinGame, navigate, showNotification]);
+  }, [state.challengeCode, isConnected, joinGame, fetchGame, navigate, showNotification]);
 
   // Animation helper function
   const animatedTransform = useCallback((index: number) => {
@@ -191,7 +186,7 @@ const LaunchPage: React.FC = () => {
           <div className="bg-slate-800/90 rounded-xl p-6 text-center space-y-4">
             <div className="animate-spin w-8 h-8 border-4 border-pink-400/30 border-t-pink-400 rounded-full mx-auto"></div>
             <div className="text-pink-400 font-medium">
-              {joinGameId ? 'Joining game...' : 'Creating game...'}
+              {state.loadingType === 'join' ? 'Joining game...' : state.loadingType === 'create' ? 'Creating game...' : 'Loading...'}
             </div>
           </div>
         </div>
@@ -207,21 +202,24 @@ const LaunchPage: React.FC = () => {
                   style={{ 
                     borderColor: num.color, 
                     transform: animatedTransform(i), 
-                    boxShadow: `0 0 20px ${num.shadow}, inset 0 0 20px ${num.shadow}` 
+                    boxShadow: i === 1 
+                      ? `0 0 20px ${num.shadow}` // Only outer shadow for 12
+                      : `0 0 20px ${num.shadow}, inset 0 0 20px ${num.shadow}` // Keep original for 7
                   }}
                 >
                   <span 
                     className="text-5xl font-black" 
                     style={{ 
-                      color: num.color, 
-                      textShadow: `0 0 12px ${num.color}, 0 0 24px ${num.color}`,
+                      color: i === 1 ? 'transparent' : num.color, // 12 is transparent
+                      textShadow: i === 1 ? `0 0 50px ${num.color}, 0 0 100px ${num.color}` : `0 0 12px ${num.color}, 0 0 24px ${num.color}`,
+                      WebkitTextStroke: `2px ${num.color}`, // border for 12
                       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
                     }}
                   >
                     {num.val}
                   </span>
                   <div 
-                    className="absolute inset-0 border-2 rounded-full opacity-30 blur-sm" 
+                    className="absolute inset-0 border-2 rounded-full opacity-30 blur-sm " 
                     style={{ borderColor: num.color }} 
                   />
                 </div>
@@ -315,7 +313,7 @@ const LaunchPage: React.FC = () => {
                   className="text-5xl font-black" 
                   style={{ 
                     color: BOTTOM_NUMS[0].color, 
-                    textShadow: `0 0 12px ${BOTTOM_NUMS[0].color}, 0 0 24px ${BOTTOM_NUMS[0].color}`,
+                    textShadow: `0 0 20px ${BOTTOM_NUMS[0].color}, 0 0 24px ${BOTTOM_NUMS[0].color}`,
                     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
                   }}
                 >

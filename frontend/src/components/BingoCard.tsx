@@ -132,7 +132,7 @@ const BingoCard: React.FC<BingoCardProps> = ({
             <button
               type="button"
               onClick={autoFillCard}
-              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors text-sm"
+              className="px-3 py-2 bg-gradient-to-r from-indigo-700 to-blue-800 hover:from-indigo-600 hover:to-blue-700 text-white rounded-lg transition-all duration-300 text-sm font-semibold shadow-lg shadow-indigo-400/30 hover:shadow-indigo-400/50 hover:scale-105 border border-indigo-400/30"
             >
               {getEmptyCellsCount === 25 ? 'Auto-fill Card' : 'Auto-fill Remaining'}
             </button>

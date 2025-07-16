@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import path from 'path';
 import { connectDB, logger } from './config';
 import { initializeSocket } from './services';
 import routes from './routes';
@@ -56,25 +57,41 @@ const createApp = (configs: ReturnType<typeof createConfigs>) => {
     (req: Request, _: Response, next: NextFunction) => (logger.http(`${req.method} ${req.url}`), next())
   ].forEach(middleware => app.use(middleware));
 
-  // Routes and error handling
-  app.use(routes);
+  // Serve frontend static files in production
+  if (config.server.env === 'production') {
+    app.use(express.static(path.join(__dirname, 'public')));
+  }
+
+  // Serve static files from frontend build (for production/Telegram)
+  if (config.server.isProd || process.env.SERVE_FRONTEND === 'true') {
+    const frontendBuildPath = path.join(__dirname, '../../frontend/dist');
+    app.use(express.static(frontendBuildPath));
+    
+    // Handle React Router routes - serve index.html for non-API routes
+    app.get(/^(?!\/api|\/socket\.io|\/health).*/, (req: Request, res: Response) => {
+      res.sendFile(path.join(frontendBuildPath, 'index.html'));
+    });
+  }
+
+  // Routes and error handling - TEMPORARILY DISABLED FOR DEBUGGING
+  // app.use(routes);
   app.use(errorHandler);
 
-  // 404 handler
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({ success: false, error: 'Not found' });
-  });
+  // 404 handler for API routes only - TEMPORARILY DISABLED
+  // app.use('/api', (_req: Request, res: Response) => {
+  //   res.status(404).json({ success: false, error: 'API endpoint not found' });
+  // });
 
-  // Health endpoint with inline error handling
-  app.get('/health', async (_: Request, res: Response) => {
-    try {
-      const health = await checkSystemHealth();
-      res.status(health.status === 'healthy' ? 200 : 503).json(health);
-    } catch (error) {
-      logger.error(`Health check error: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ status: 'error', message: 'Health check failed' });
-    }
-  });
+  // Health endpoint with inline error handling - TEMPORARILY DISABLED
+  // app.get('/health', async (_: Request, res: Response) => {
+  //   try {
+  //     const health = await checkSystemHealth();
+  //     res.status(health.status === 'healthy' ? 200 : 503).json(health);
+  //   } catch (error) {
+  //     logger.error(`Health check error: ${error instanceof Error ? error.message : String(error)}`);
+  //     res.status(500).json({ status: 'error', message: 'Health check failed' });
+  //   }
+  // });
 
   return app;
 };

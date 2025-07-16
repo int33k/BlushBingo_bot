@@ -162,21 +162,35 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
     // Create new game with swapped roles (acceptor becomes challenger, challenger becomes acceptor)
     const newGame = new Game({
       gameId: await this.generateUniqueGameId(),
-      status: 'lobby', // Start in lobby state since both players are already connected
+      status: 'waiting', // Start in waiting state, not lobby
       players: {
-        challenger: this.createPlayerObject(acceptor.playerId, acceptor.name),
-        acceptor: this.createPlayerObject(challenger.playerId, challenger.name)
+        challenger: { 
+          ...this.createPlayerObject(acceptor.playerId, acceptor.name, 'waiting'), 
+          connected: false,
+          card: undefined, // No pre-filled cards
+          markedCells: [],
+          completedLines: 0,
+          markedLetters: []
+        },
+        acceptor: { 
+          ...this.createPlayerObject(challenger.playerId, challenger.name, 'waiting'), 
+          connected: false,
+          card: undefined, // No pre-filled cards
+          markedCells: [],
+          completedLines: 0,
+          markedLetters: []
+        }
       },
-      currentTurn: null,
-      moves: [],
+      currentTurn: null, // No turn until game starts
+      moves: [], // Empty moves
       winner: null,
       winReason: null,
-      connectedPlayers: [...(originalGame.connectedPlayers || [])],
+      connectedPlayers: [], // Empty - players need to rejoin
       rematchRequests: { challenger: false, acceptor: false }, // Reset rematch requests
       lookupTable: [] // Will be generated when both players are ready
     });
 
-    // Update status message for lobby
+    // Update status message for waiting state
     newGame.updateStatusMessage();
 
     return this.repository.save(newGame);
@@ -207,7 +221,7 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
       console.log(`🎮 Line marked: ${numbers.length} cells marked for both players (turn stays: ${game.currentTurn})`);
       game.checkCompletedLines(role);
       return game;
-    }, true);
+    }, false); // Changed from true to false - markLine doesn't require player's turn
   }
 
   async claimBingo(gameId: string, playerId: string) {
@@ -216,6 +230,20 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
       if (game.checkCompletedLines(role) < 5) throw createInvalidMoveError({ gameId, playerId, move: 0, reason: 'Need 5 lines' });
       game.endGame(role, 'bingo');
       console.log(`🎮 BINGO: ${role} wins ${gameId}`);
+      return game;
+    });
+  }
+
+  async instantWin(gameId: string, playerId: string) {
+    return this.executeGameOperation(gameId, playerId, (game, role, player) => {
+      if (game.status !== 'playing') throw createInvalidMoveError({ gameId, playerId, move: 0, reason: 'Game not playing' });
+      
+      // Force the player to have 5 completed lines for instant win
+      player.completedLines = 5;
+      
+      // End the game immediately with this player as winner
+      game.endGame(role, 'bingo');
+      console.log(`🎮 INSTANT WIN: ${role} wins ${gameId}`);
       return game;
     });
   }
@@ -263,8 +291,13 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
         
         // Restore appropriate status based on game state
         if (game.status === 'waiting' || game.status === 'lobby') {
-          // In lobby, restore to waiting or ready based on whether they have a card
-          player.status = player.card ? 'ready' : 'waiting';
+          // In lobby, always start fresh - don't restore old card status for rematch games
+          player.status = 'waiting';
+          // Clear any old card data to ensure fresh start
+          player.card = undefined;
+          player.markedCells = [];
+          player.completedLines = 0;
+          player.markedLetters = [];
         } else if (game.status === 'playing') {
           player.status = 'playing';
         }

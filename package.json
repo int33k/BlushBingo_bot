@@ -12,6 +12,8 @@
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
+    "build:all": "cd frontend && npm run build && cd ../backend && npm run build",
+    "start:telegram": "cd frontend && npm run build && cd ../backend && SERVE_FRONTEND=true npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -30,6 +32,7 @@
     "axios": "^1.10.0",
     "mongodb": "^6.17.0",
     "socket.io-client": "^4.8.1",
+    "telegraf": "^4.16.3",
     "ws": "^8.18.3"
   }
 }
