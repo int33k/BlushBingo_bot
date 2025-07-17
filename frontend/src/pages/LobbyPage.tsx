@@ -105,10 +105,23 @@ const LobbyPage: React.FC = () => {
       }
     };
 
+    const handleBeforeUnload = () => {
+      if (currentGame?.status === 'lobby' || currentGame?.status === 'waiting') {
+        if (emit && currentPlayer) {
+          emit('game:disconnect', {
+            gameId,
+            playerId: currentPlayer.playerId
+          });
+        }
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [currentGame?.status, emit, currentPlayer, gameId, navigate]);
 

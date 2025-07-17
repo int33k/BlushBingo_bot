@@ -144,6 +144,16 @@ export const useGameLogic = () => {
     }
   }, [completedLinesHistory]);
 
+  // Optimistically mark a cell in the UI before server confirmation
+  const optimisticMarkCell = useCallback((row: number, col: number) => {
+    setBingoCard(prev => {
+      if (!prev[row] || prev[row][col] === null) return prev;
+      const newCard = prev.map(r => [...r]);
+      newCard[row][col] = null;
+      return newCard;
+    });
+  }, []);
+
   return {
     // State
     bingoCard,
@@ -167,6 +177,9 @@ export const useGameLogic = () => {
     updateBingoCard,
     updateMoveHistory,
     updateCompletedLines,
-    updateActiveLetters
+    updateActiveLetters,
+
+    // Optimistic update
+    optimisticMarkCell,
   };
 };

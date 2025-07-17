@@ -243,15 +243,11 @@ const GamePage: React.FC = () => {
   // Game action handlers
   const handleCellClick = useCallback((row: number, col: number) => {
     if (!gameLogic.isCellClickable(row, col)) return;
-    
     const clickedNumber = gameLogic.bingoCard[row][col];
     if (typeof clickedNumber !== 'number' || clickedNumber < 1 || clickedNumber > 25) return;
-    
     const moveData = { gameId, number: clickedNumber, playerId: gameLogic.playerInfo.current?.playerId };
-    
-    // Optimistic UI update for better responsiveness
-    gameLogic.updateBingoCard();
-    
+    // Optimistically mark the cell for instant UI feedback
+    gameLogic.optimisticMarkCell(row, col);
     const socketSuccess = sendSocketMessage('game:move', moveData, (ack: unknown) => {
       const acknowledgment = ack as { game?: unknown; error?: string };
       if (acknowledgment?.error) {
@@ -262,14 +258,13 @@ const GamePage: React.FC = () => {
       }
       // No need to update on success since game:updated event will handle it
     });
-    
     if (!socketSuccess) {
       // Fallback to API if socket not available
       apiCall('/games/move', moveData)
         .then(() => fetchGame(gameId!))
         .catch(() => {
           showNotification('Move failed, please try again', 'error');
-          fetchGame(gameId!); // Revert optimistic update
+          fetchGame(gameId!);
         });
     }
   }, [gameLogic, gameId, sendSocketMessage, fetchGame, showNotification]);
