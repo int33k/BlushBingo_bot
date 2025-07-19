@@ -10,10 +10,13 @@ export const initializeSocket = (): Socket => {
     return socket;
   }
 
-  // Get the socket URL from environment variables or use a fallback
-  // For production/Telegram: use same origin, for development: use explicit backend port
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 
-    (import.meta.env.PROD ? window.location.origin : `http://${window.location.hostname}:3001`);
+
+  // Socket URL logic for ngrok/dev
+  const isProd = import.meta.env.PROD;
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const socketUrl = isProd
+    ? `${wsProtocol}://${window.location.host}` // Use current host in production
+    : (import.meta.env.VITE_SOCKET_URL || `http://localhost:3001`);
   console.log(`Initializing socket connection to: ${socketUrl}`);
 
   socket = io(socketUrl, {
