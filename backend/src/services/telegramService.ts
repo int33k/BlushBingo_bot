@@ -19,8 +19,8 @@ class TelegramBotService {
 
   constructor(token: string) {
     this.bot = new Telegraf(token);
-    this.setupCommands();
     this.setupMiddleware();
+    this.setupCommands();
   }
 
   private setupMiddleware() {
@@ -91,31 +91,19 @@ class TelegramBotService {
     return null;
   }
 
-  /**
-   * Generate a game URL with user parameters
-   */
-  private generateGameUrl(gameId: string, user: TelegramUser): string {
-    const baseUrl = this.getWebAppBaseUrl();
-    return `${baseUrl}?gameId=${gameId}&userId=${user.id}&firstName=${encodeURIComponent(user.first_name)}`;
-  }
-
   private setupCommands() {
     // Start command - shows main menu
     this.bot.command('start', (ctx: GameContext) => {
       const user = ctx.telegramUser;
-      const welcomeMessage = `🎮 Welcome to Blush Bingo, ${user?.first_name}! 🎮
-
-🔥 Ready to play the most exciting Bingo game?
-
-Choose an option:`;
-
-      ctx.reply(welcomeMessage, {
+      logger.info(`[TelegramBot] /start user: ${JSON.stringify(user)}`);
+      const firstName = user && typeof user.first_name === 'string' ? user.first_name : (user && user.username ? user.username : 'Player');
+      // Show first name in bold, fallback to username or 'Player' if not available
+      const nameText = firstName ? `<b>${firstName}</b>` : '<b>Player</b>';
+      const welcomeMessage = `Welcome to BlushBingo, ${nameText}!\nTap on Launch Game button to play`;
+      ctx.replyWithHTML(welcomeMessage, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🎯 Create New Game', callback_data: 'create_game' }],
-            [{ text: '🎲 Join Game', callback_data: 'join_game' }],
-            [{ text: '📋 How to Play', callback_data: 'how_to_play' }],
-            [{ text: '🏆 My Stats', callback_data: 'my_stats' }]
+            [{ text: '🚀 Launch Game', web_app: { url: this.getWebAppBaseUrl() } }]
           ]
         }
       });
@@ -123,206 +111,25 @@ Choose an option:`;
 
     // Help command
     this.bot.command('help', (ctx) => {
-      ctx.reply(`🎮 Blush Bingo Commands:
-
-/start - Start the game
-/create - Create a new game
-/join - Join a game with code
-/help - Show this help message
-/stats - Show your statistics
-
-🎯 Quick Actions:
-• Click "Create New Game" to start a new match
-• Use a game code to join an existing game
-• Play with friends in real-time!`);
-    });
-
-    // Handle button callbacks
-    this.bot.action('create_game', this.handleCreateGame.bind(this));
-    this.bot.action('join_game', this.handleJoinGame.bind(this));
-    this.bot.action('how_to_play', this.handleHowToPlay.bind(this));
-    this.bot.action('my_stats', this.handleMyStats.bind(this));
-    this.bot.action('back_to_menu', this.handleBackToMenu.bind(this));
-  }
-
-  private async handleCreateGame(ctx: GameContext) {
-    try {
-      await ctx.answerCbQuery();
-      
-      const user = ctx.telegramUser;
-      if (!user) {
-        await ctx.reply('❌ Unable to identify user. Please try again.');
-        return;
-      }
-
-      // Generate a unique game ID
-      const gameId = this.generateGameId();
-      
-      const message = `🎯 New Game Created!
-
-🔗 Game Code: \`${gameId}\`
-
-🌐 Play here: ${this.generateGameUrl(gameId, user)}
-
-Share the game code with a friend to start playing! 🎮`;
-
-      await ctx.reply(message, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎮 Open Game', web_app: { url: this.generateGameUrl(gameId, user) } }],
-            [{ text: '📋 Share Game Code', switch_inline_query: `Join my Bingo game! Code: ${gameId}` }],
-            [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
-          ]
-        }
-      });
-
-    } catch (error) {
-      logger.error('Error creating game:', error);
-      await ctx.reply('❌ Failed to create game. Please try again.');
-    }
-  }
-
-  private async handleJoinGame(ctx: GameContext) {
-    try {
-      await ctx.answerCbQuery();
-      
-      await ctx.reply('🎲 Enter the game code to join:', {
-        reply_markup: {
-          force_reply: true,
-          input_field_placeholder: 'Enter game code...'
-        }
-      });
-
-      // Listen for the next message as game code
-      this.bot.hears(/^[A-Z0-9]{6}$/, async (ctx: GameContext) => {
-        const gameId = 'text' in ctx.message! ? ctx.message.text : undefined;
-        const user = ctx.telegramUser;
-        
-        if (!gameId || !user) {
-          await ctx.reply('❌ Invalid game code or user. Please try again.');
-          return;
-        }
-
-        const gameUrl = this.generateGameUrl(gameId, user);
-        
-        await ctx.reply(`🎮 Joining game: \`${gameId}\``, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🎮 Open Game', web_app: { url: gameUrl } }],
-              [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
-            ]
-          }
-        });
-      });
-
-    } catch (error) {
-      logger.error('Error joining game:', error);
-      await ctx.reply('❌ Failed to join game. Please try again.');
-    }
-  }
-
-  private async handleHowToPlay(ctx: GameContext) {
-    try {
-      await ctx.answerCbQuery();
-      
       const instructions = `🎯 How to Play Blush Bingo:
 
-1️⃣ **Create or Join**: Start a new game or join with a code
-2️⃣ **Fill Your Card**: Complete your 5x5 bingo card with numbers 1-25
-3️⃣ **Wait for Match**: Both players must be ready to start
-4️⃣ **Play**: Numbers are called automatically
-5️⃣ **Mark Numbers**: Tap numbers on your card as they're called
-6️⃣ **Get BINGO**: Complete 5 lines (rows, columns, diagonals) to win!
+1️⃣ Create or Join: Start a new game or join with a code
+2️⃣ Fill Your Card: Complete your 5x5 bingo card with numbers 1-25
+3️⃣ Wait for Match: Both players must be ready to start
+4️⃣ Play: Numbers are called Turn-wise
+5️⃣ Mark Numbers: Tap numbers on your card as they're called
+6️⃣ Get BINGO: Complete 5 lines (rows, columns, diagonals) to win!
 
-🏆 **Winning**: First to complete all 5 lines wins the game!
+🏆 Winning: First to complete all 5 lines wins the game!
 
-💡 **Tips**:
+💡 Tips:
 • Choose your numbers strategically
 • Pay attention to called numbers
 • React quickly to mark your card`;
 
-      await ctx.reply(instructions, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎯 Create Game', callback_data: 'create_game' }],
-            [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
-          ]
-        }
-      });
+      ctx.reply(instructions);
+    });
 
-    } catch (error) {
-      logger.error('Error showing instructions:', error);
-      await ctx.reply('❌ Failed to load instructions. Please try again.');
-    }
-  }
-
-  private async handleMyStats(ctx: GameContext) {
-    try {
-      await ctx.answerCbQuery();
-      
-      // TODO: Implement stats fetching from database
-      const stats = `📊 Your Blush Bingo Stats:
-
-🎮 Games Played: 0
-🏆 Games Won: 0
-📈 Win Rate: 0%
-⚡ Best Time: --
-🔥 Current Streak: 0
-
-🚀 Start playing to build your stats!`;
-
-      await ctx.reply(stats, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎯 Play Now', callback_data: 'create_game' }],
-            [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
-          ]
-        }
-      });
-
-    } catch (error) {
-      logger.error('Error showing stats:', error);
-      await ctx.reply('❌ Failed to load stats. Please try again.');
-    }
-  }
-
-  private async handleBackToMenu(ctx: GameContext) {
-    try {
-      await ctx.answerCbQuery();
-      
-      const user = ctx.telegramUser;
-      const welcomeMessage = `🎮 Welcome back to Blush Bingo, ${user?.first_name}! 🎮
-
-🔥 Ready to play the most exciting Bingo game?
-
-Choose an option:`;
-
-      await ctx.editMessageText(welcomeMessage, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎯 Create New Game', callback_data: 'create_game' }],
-            [{ text: '🎲 Join Game', callback_data: 'join_game' }],
-            [{ text: '📋 How to Play', callback_data: 'how_to_play' }],
-            [{ text: '🏆 My Stats', callback_data: 'my_stats' }]
-          ]
-        }
-      });
-
-    } catch (error) {
-      logger.error('Error showing back to menu:', error);
-      await ctx.reply('❌ Failed to show menu. Please try /start again.');
-    }
-  }
-
-  private generateGameId(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
   }
 
   public async initialize(): Promise<void> {

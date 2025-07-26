@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSocket, useGame } from '../hooks';
+import { useUser } from '../hooks';
 import { NotificationBanner } from '../components/NotificationBanner';
 import type { Notification } from '../types';
 
@@ -18,6 +19,7 @@ const LaunchPage: React.FC = () => {
   const navigate = useNavigate();
   const { gameId: joinGameId } = useParams();
   const { isConnected, isReconnecting } = useSocket();
+  const { user } = useUser();
   const { createGame, joinGame, leaveGame, fetchGame } = useGame();
   const [state, setState] = useState({ 
     challengeCode: joinGameId || '', 
@@ -88,16 +90,19 @@ const LaunchPage: React.FC = () => {
       const response = await createGame();
       if (response.success) {
         const gameId = response.gameId;
-      try {
-        await navigator.clipboard.writeText(`${window.location.origin}/#/join/${gameId}`);
-      } catch {
-        // ignore clipboard errors
-      }
-      // Wait for game data before navigating
-      if (typeof gameId === 'string') {
-        await fetchGame(gameId);
-        navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
-      }
+        if (typeof gameId === 'string') {
+          await fetchGame(gameId);
+          // Share challenge link via Telegram FIRST
+          import('../services/gameService').then(({ shareChallengeLink }) => {
+            const userName = user?.name || '';
+            const shared = shareChallengeLink(gameId, userName);
+            if (!shared) {
+              showNotification(`Share this link: https://t.me/BlushBingo_bot?startapp=${gameId}`, 'info');
+            }           
+            navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
+           
+          });
+        }
       } else {
         showNotification(response.error || 'Failed to create game', 'error');
       }
@@ -106,7 +111,7 @@ const LaunchPage: React.FC = () => {
     } finally {
       setState(s => ({ ...s, isLoading: false, loadingType: null }));
     }
-  }, [isConnected, createGame, fetchGame, navigate, showNotification]);
+  }, [isConnected, createGame, fetchGame, navigate, showNotification, user]);
 
   const handleJoinGame = useCallback(async (gameIdToJoin?: string) => {
     const codeToUse = gameIdToJoin || state.challengeCode.trim();

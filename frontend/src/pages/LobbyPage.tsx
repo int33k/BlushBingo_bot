@@ -8,6 +8,7 @@ import PlayerSelectionOverlay from '../components/PlayerSelectionOverlay';
 import type { Notification } from '../types';
 
 const LobbyPage: React.FC = () => {
+  const { joinGame } = useGame();
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,17 +89,28 @@ const LobbyPage: React.FC = () => {
   // Consolidated effects with ultra-compact logic
   useEffect(() => { if (!gameId) navigate('/'); }, [gameId, navigate]);
   useEffect(() => {
-    if (!gameId || currentGame || !isConnected || !user || fetchedRef.current === gameId) return;
+    if (!gameId || !isConnected || !user || fetchedRef.current === gameId) return;
     fetchedRef.current = gameId;
     setFetchFailed(false);
-    emit('connection:reconnect', { gameId, playerId: user.identifier });
-    fetchGame(gameId).catch((error: Error) => {
-      console.error('Failed to fetch game:', error);
-      setFetchFailed(true);
-      setState(s => ({ ...s, notification: { message: 'Failed to load game. Please check the game code.', type: 'error' } }));
-      setTimeout(() => navigate('/'), 3000);
-    });
-  }, [gameId, currentGame, isConnected, user, fetchGame, navigate, emit, setFetchFailed]);
+    // Try to fetch game first
+    fetchGame(gameId)
+      .then((gameResponse) => {
+        const players = gameResponse.game?.players;
+        const isPlayer = players && (players.challenger?.playerId === user.identifier || players.acceptor?.playerId === user.identifier);
+        if (!isPlayer) {
+          emit('connection:reconnect', { gameId, playerId: user.identifier });
+          joinGame(gameId).then(() => fetchGame(gameId));
+        } else {
+          emit('connection:reconnect', { gameId, playerId: user.identifier });
+        }
+      })
+      .catch((error: Error) => {
+        console.error('Failed to fetch game:', error);
+        setFetchFailed(true);
+        setState(s => ({ ...s, notification: { message: 'Failed to load game. Please check the game code.', type: 'error' } }));
+        setTimeout(() => navigate('/'), 3000);
+      });
+  }, [gameId, currentGame, isConnected, user, fetchGame, navigate, emit, setFetchFailed, joinGame]);
 
   // Prevent back navigation during lobby and ensure disconnection
   useEffect(() => {

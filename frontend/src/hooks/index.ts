@@ -3,6 +3,7 @@ import { useContext } from 'react';
 import { GameContext } from '../contexts/GameContextDefinition';
 import { SocketContext } from '../contexts/SocketContext';
 import { UserContext } from '../contexts/UserContext';
+import type { UserContextType } from '../types';
 
 const createHook = <T>(context: React.Context<T | undefined>, name: string) => (): T => {
   const ctx = useContext(context);
@@ -12,7 +13,11 @@ const createHook = <T>(context: React.Context<T | undefined>, name: string) => (
 
 export const useGame = createHook(GameContext, 'useGame');
 export const useSocket = createHook(SocketContext, 'useSocket');
-export const useUser = createHook(UserContext, 'useUser');
+export const useUser = () => {
+  const ctx = useContext(UserContext);
+  if (ctx === undefined) throw new Error('useUser must be used within a UserProvider');
+  return ctx as UserContextType & { userLoading: boolean };
+};
 
 // Export new modular hooks
 export { useGameLogic } from './useGameLogic';

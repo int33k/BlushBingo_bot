@@ -13,6 +13,7 @@ import { connectDB, logger } from './config';
 import { initializeSocket } from './services';
 import routes from './routes';
 import config from './config';
+import TelegramBotService from './services/telegramService';
 
 import { startHealthChecks, checkSystemHealth } from './utils/math';
 import { errorHandler } from './middleware';
@@ -64,7 +65,6 @@ const createApp = (configs: ReturnType<typeof createConfigs>) => {
     next();
   });
 
-  // ...existing code...
   [
     helmet({
       contentSecurityPolicy: {
@@ -176,6 +176,16 @@ const initializeServer = async () => {
       logger.info(`Server running in ${config.server.env} mode on port ${config.server.port}`);
       startHealthChecks(60000);
     });
+
+    // --- Initialize Telegram Bot ---
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+      const telegramBot = new TelegramBotService(botToken);
+      await telegramBot.initialize();
+      logger.info('Telegram bot started');
+    } else {
+      logger.warn('TELEGRAM_BOT_TOKEN not set. Telegram bot will not start.');
+    }
 
     // Unified error and shutdown handling
     const cleanup = () => (clearInterval(disconnectionTimer), logger.info('Disconnection timer cleared'));

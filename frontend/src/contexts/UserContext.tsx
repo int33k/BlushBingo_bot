@@ -11,6 +11,7 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
 
   // User initialization with short polling/retry for Telegram user
   useEffect(() => {
@@ -46,6 +47,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setUser(newUser);
         localStorage.setItem('bingoUser', JSON.stringify(newUser));
         clearInterval(interval);
+        setUserLoading(false);
       } else if (attempts >= maxAttempts) {
         clearInterval(interval);
         if (storedUser && !forceNewUser) {
@@ -62,6 +64,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           localStorage.setItem('bingoUser', JSON.stringify(newUser));
           if (forceNewUser) window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         }
+        setUserLoading(false);
       }
     }, 200);
 
@@ -76,12 +79,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const logout = () => { setUser(null); localStorage.removeItem('bingoUser'); };
 
-  const value: UserContextType = {
+  const value: UserContextType & { userLoading: boolean } = {
     user,
     setUser,
     isAuthenticated: !!user?.isAuthenticated,
     login,
-    logout
+    logout,
+    userLoading
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

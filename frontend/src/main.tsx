@@ -12,6 +12,27 @@ console.log('[DEBUG] window.Telegram.WebApp.initDataUnsafe:', window.Telegram?.W
 
 // --- EARLY Telegram WebApp initialization ---
 telegramWebApp.initialize();
+
+// --- Handle Telegram challenge link before React mounts ---
+function getGameIdFromTelegramParams() {
+  // Check query string
+  const urlParams = new URLSearchParams(window.location.search);
+  let gameId = urlParams.get('startapp') || urlParams.get('start_param');
+  // Check hash for tgWebAppData
+  if (!gameId && window.location.hash) {
+    const hashParams = decodeURIComponent(window.location.hash);
+    const match = hashParams.match(/start_param=([0-9]+)/);
+    if (match) {
+      gameId = match[1];
+    }
+  }
+  return gameId;
+}
+const gameId = getGameIdFromTelegramParams();
+if (gameId && !window.location.pathname.startsWith('/lobby/')) {
+  window.location.replace(`/lobby/${gameId}`);
+}
+
 // Fix for Edge browser FOUC (Flash of Unstyled Content)
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
