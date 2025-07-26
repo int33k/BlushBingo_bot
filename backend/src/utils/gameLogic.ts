@@ -68,33 +68,33 @@ export const isGameCompleted = (game: GameDocument): boolean => C.includes(game.
 export const generateStatusMessage = (game: GameDocument, currentPlayerId?: string): string => {
   const { challenger: c, acceptor: a } = game.players;
   
-  console.log(`[DEBUG] generateStatusMessage called with:`, {
-    currentPlayerId,
-    challenger: c ? { playerId: c.playerId, status: c.status, connected: c.connected } : null,
-    acceptor: a ? { playerId: a.playerId, status: a.status, connected: a.connected } : null,
-    gameStatus: game.status
-  });
+  // console.log(`[DEBUG] generateStatusMessage called with:`, {
+  //   currentPlayerId,
+  //   challenger: c ? { playerId: c.playerId, status: c.status, connected: c.connected } : null,
+  //   acceptor: a ? { playerId: a.playerId, status: a.status, connected: a.connected } : null,
+  //   gameStatus: game.status
+  // });
   
   // Handle case when currentPlayerId is not provided (general status)
-  if (!currentPlayerId) {
-    const message = !c || !a ? 'Waiting for opponent to join...' :
-           game.status === 'playing' ? 'Game in progress!' :
-           game.status === 'completed' ? 'Game completed.' :
-           c.status === 'ready' && a.status === 'ready' ? 'Both players ready! Game starting soon...' :
-           'Players are preparing their cards...';
-    console.log(`[DEBUG] Generated general status message:`, message);
-    return message;
-  }
+  // if (!currentPlayerId) {
+  //   const message = !c || !a ? 'Waiting for opponent to join...' :
+  //          game.status === 'playing' ? 'Game in progress!' :
+  //          game.status === 'completed' ? 'Game completed.' :
+  //          c.status === 'ready' && a.status === 'ready' ? 'Both players ready! Game starting soon...' :
+  //          'Players are preparing their cards...';
+  //   console.log(`[DEBUG] Generated general status message:`, message);
+  //   return message;
+  // }
 
   const isC = c?.playerId === currentPlayerId;
   const [curr, opp] = isC ? [c, a] : [a, c];
   
-  console.log(`[DEBUG] Player-specific status generation:`, {
-    currentPlayerId,
-    isChallenger: isC,
-    currentPlayer: curr ? { playerId: curr.playerId, status: curr.status, connected: curr.connected } : null,
-    opponent: opp ? { playerId: opp.playerId, status: opp.status, connected: opp.connected } : null
-  });
+  // console.log(`[DEBUG] Player-specific status generation:`, {
+  //   currentPlayerId,
+  //   isChallenger: isC,
+  //   currentPlayer: curr ? { playerId: curr.playerId, status: curr.status, connected: curr.connected } : null,
+  //   opponent: opp ? { playerId: opp.playerId, status: opp.status, connected: opp.connected } : null
+  // });
   
   // If current player doesn't exist, they're joining
   if (!curr) return 'Joining game...';
@@ -131,12 +131,12 @@ export const generateStatusMessage = (game: GameDocument, currentPlayerId?: stri
   else if (opponentReady) message = 'Opponent is ready. Complete your card and get ready!';
   else message = 'Both players are preparing their cards...';
   
-  console.log(`[DEBUG] Generated player-specific status message for ${currentPlayerId}:`, message, {
-    currentReady,
-    opponentReady,
-    currentStatus: curr.status,
-    opponentStatus: opp.status
-  });
+  // console.log(`[DEBUG] Generated player-specific status message for ${currentPlayerId}:`, message, {
+  //   currentReady,
+  //   opponentReady,
+  //   currentStatus: curr.status,
+  //   opponentStatus: opp.status
+  // });
   
   return message;
 };

@@ -7,6 +7,19 @@ import { validatePlayerAuth, validateSocketGameParams, handleSocketValidationErr
 import { generateStatusMessage } from '../../../utils/gameLogic';
 
 // Higher-order function for common handler patterns
+// Helper to ensure photoUrl is present for both players
+function ensurePlayerPhotoUrls(gameObj: any, game: any): any {
+  if (gameObj.players) {
+    if (gameObj.players.challenger && !gameObj.players.challenger.photoUrl) gameObj.players.challenger.photoUrl = game.players.challenger?.photoUrl || null;
+    if (gameObj.players.acceptor && !gameObj.players.acceptor.photoUrl) gameObj.players.acceptor.photoUrl = game.players.acceptor?.photoUrl || null;
+    // Debug: Log both photoUrls at backend emission
+    console.log('[PHOTOURL FLOW] Backend ensurePlayerPhotoUrls:', {
+      challengerPhotoUrl: gameObj.players.challenger?.photoUrl,
+      acceptorPhotoUrl: gameObj.players.acceptor?.photoUrl
+    });
+  }
+  return gameObj;
+}
 const createHandler = <T>(
   operation: (socket: Socket, io: Server, data: T, params?: any) => Promise<any>,
   eventName: string,
@@ -17,7 +30,12 @@ const createHandler = <T>(
       ? await operation(socket, io, data, validateSocketGameParams(socket, data))
       : await operation(socket, io, data);
 
-    callback ? callback({ game: result }) : socket.emit(`game:${eventName}`, { game: result });
+    // Ensure photoUrl for both players before sending
+    let gameObj = result && result.toObject ? result.toObject() : result;
+    if (gameObj && result && result.players) {
+      gameObj = ensurePlayerPhotoUrls(gameObj, result);
+    }
+    callback ? callback({ game: gameObj }) : socket.emit(`game:${eventName}`, { game: gameObj });
     logger.info(`${eventName} completed for ${socket.data.identifier || 'unknown'}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
@@ -28,7 +46,11 @@ const createHandler = <T>(
 // Optimized auth + player data extraction
 const getPlayerData = (socket: Socket, data: any) => {
   const identifier = validatePlayerAuth(socket, data);
-  return identifier ? { identifier, name: socket.data.name || data.name } : null;
+  // Accept photoUrl from socket.data or data
+  let photoUrl = data.photoUrl || socket.data.photoUrl || null;
+  // Debug: Log photoUrl at getPlayerData
+  console.log('[PHOTOURL FLOW] getPlayerData:', { identifier, name: socket.data.name || data.name, photoUrl, data, socketData: socket.data });
+  return identifier ? { identifier, name: socket.data.name || data.name, photoUrl } : null;
 };
 
 // Socket room operations helper
@@ -42,7 +64,8 @@ const gameOps = {
   create: async (socket: Socket, io: Server, data: GameCreateEventData) => {
     const playerData = getPlayerData(socket, data);
     if (!playerData) throw new Error('Authentication failed');
-
+    // Store photoUrl in socket.data for future events
+    if (playerData.photoUrl) socket.data.photoUrl = playerData.photoUrl;
     const game = await gameCreationService.createGame(playerData);
     joinGameRoom(socket, game.gameId);
     return game;
@@ -62,12 +85,12 @@ const gameOps = {
     const gameId = data?.gameId;
     const playerData = getPlayerData(socket, data);
     if (!gameId || !playerData) throw new Error('Validation failed');
-
+    // Store photoUrl in socket.data for future events
+    if (playerData.photoUrl) socket.data.photoUrl = playerData.photoUrl;
     // First check if this is a rejoining player
     const existingGame = await gameService.getGameById(gameId);
     const existingRole = existingGame.players.challenger?.playerId === playerData.identifier ? 'challenger' :
                         existingGame.players.acceptor?.playerId === playerData.identifier ? 'acceptor' : null;
-    
     let game;
     if (existingRole) {
       // Player is rejoining - use reconnection logic instead of join
@@ -77,18 +100,21 @@ const gameOps = {
       // New player joining
       game = await gameCreationService.joinGame(gameId, playerData);
     }
-    
     joinGameRoom(socket, gameId);
     game.updateStatusMessage();
-
     // Send player-specific status messages to each player in the room
     const socketsInRoom = await io.in(gameId).fetchSockets();
     for (const roomSocket of socketsInRoom) {
       const socketPlayerId = roomSocket.data.identifier;
       if (socketPlayerId) {
-        // Generate player-specific status message
+        // Ensure photoUrl is present for both players
+        const gameObj = game.toObject();
+        if (gameObj.players) {
+          if (gameObj.players.challenger && !gameObj.players.challenger.photoUrl) gameObj.players.challenger.photoUrl = game.players.challenger?.photoUrl || null;
+          if (gameObj.players.acceptor && !gameObj.players.acceptor.photoUrl) gameObj.players.acceptor.photoUrl = game.players.acceptor?.photoUrl || null;
+        }
         const playerSpecificGame = { 
-          ...game.toObject(), 
+          ...gameObj, 
           statusMessage: generateStatusMessage(game, socketPlayerId) 
         };
         roomSocket.emit('game:playerJoined', { 
@@ -97,7 +123,6 @@ const gameOps = {
         });
       }
     }
-    
     return game;
   }
 };
@@ -125,7 +150,6 @@ const createGamePlayHandler = (operation: keyof typeof gamePlayOps, responseEven
       if (!params) return;
 
       const game = await gamePlayOps[operation](params, data);
-      
       // Send updated game state to all players in the room
       const socketsInRoom = await io.in(params.gameId).fetchSockets();
       for (const roomSocket of socketsInRoom) {
@@ -133,7 +157,7 @@ const createGamePlayHandler = (operation: keyof typeof gamePlayOps, responseEven
         if (socketPlayerId) {
           // Generate player-specific status message
           const playerSpecificGame = { 
-            ...game.toObject(), 
+            ...ensurePlayerPhotoUrls(game.toObject(), game), 
             statusMessage: generateStatusMessage(game, socketPlayerId) 
           };
           roomSocket.emit(responseEvent, { 
@@ -142,8 +166,7 @@ const createGamePlayHandler = (operation: keyof typeof gamePlayOps, responseEven
           });
         }
       }
-
-      callback?.({ game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
+      callback?.({ game: { ...ensurePlayerPhotoUrls(game.toObject(), game), statusMessage: generateStatusMessage(game, params.playerId) } });
       logger.info(`${operation} completed for ${params.playerId} in game ${params.gameId}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unexpected error';
@@ -176,7 +199,7 @@ const handleRematch = async (socket: Socket, io: Server, data: RequestRematchEve
         }
       }
       
-      callback?.({ game: { ...rematchGame.toObject(), statusMessage: generateStatusMessage(rematchGame, params.playerId) } });
+      callback?.({ game: { ...ensurePlayerPhotoUrls(rematchGame.toObject(), rematchGame), statusMessage: generateStatusMessage(rematchGame, params.playerId) } });
       logger.info(`Rematch accepted - new game ${rematchGame.gameId} created from ${params.gameId}`);
     } else {
       // Only one player has requested rematch so far
@@ -185,7 +208,7 @@ const handleRematch = async (socket: Socket, io: Server, data: RequestRematchEve
         const socketPlayerId = roomSocket.data.identifier;
         if (socketPlayerId) {
           const playerSpecificGame = { 
-            ...game.toObject(), 
+            ...ensurePlayerPhotoUrls(game.toObject(), game), 
             statusMessage: generateStatusMessage(game, socketPlayerId) 
           };
           roomSocket.emit('game:rematchRequested', { 
@@ -195,7 +218,7 @@ const handleRematch = async (socket: Socket, io: Server, data: RequestRematchEve
         }
       }
       
-      callback?.({ game: { ...game.toObject(), statusMessage: generateStatusMessage(game, params.playerId) } });
+      callback?.({ game: { ...ensurePlayerPhotoUrls(game.toObject(), game), statusMessage: generateStatusMessage(game, params.playerId) } });
       logger.info(`Rematch requested by ${params.playerId} in game ${params.gameId}`);
     }
   } catch (error) {

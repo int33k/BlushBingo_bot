@@ -30,7 +30,19 @@ const LobbyPage: React.FC = () => {
   const { currentPlayerRole, currentPlayer, opponent, isCardComplete, shouldShowRoomCode, getStatusMessage } = useMemo(() => {
     const role = currentGame?.players.challenger?.playerId === user?.identifier ? 'challenger' : 'acceptor';
     const current = currentGame?.players[role];
-    const opp = currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger'];
+    let opp = currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger'];
+    // Debug: Log opponent photoUrl at mapping
+    console.log('[PHOTOURL FLOW] Mapping opponent:', {
+      opp,
+      oppPhotoUrl: opp?.photoUrl,
+      backendPhotoUrl: currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger']?.photoUrl
+    });
+    if (opp && !opp.photoUrl && currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger']?.photoUrl) {
+      const oppPlayer = currentGame.players[role === 'challenger' ? 'acceptor' : 'challenger'];
+      if (oppPlayer && oppPlayer.photoUrl) {
+        opp = { ...opp, photoUrl: oppPlayer.photoUrl };
+      }
+    }
     
     // Optimized card validation with early return and bitwise operations
     const isComplete = () => {
@@ -138,22 +150,22 @@ const LobbyPage: React.FC = () => {
       const current = currentPlayerRole === 'challenger' ? challenger : acceptor;
       const opp = currentPlayerRole === 'challenger' ? acceptor : challenger;
       
-      console.log('[DEBUG] Setting up PlayerSelectionOverlay:', {
-        gameStatus: currentGame.status,
-        currentTurn: currentGame.currentTurn,
-        challenger: challenger?.name,
-        acceptor: acceptor?.name,
-        currentPlayerRole,
-        firstPlayerRole,
-        overlayShown: state.overlayShown
-      });
+      // console.log('[DEBUG] Setting up PlayerSelectionOverlay:', {
+      //   gameStatus: currentGame.status,
+      //   currentTurn: currentGame.currentTurn,
+      //   challenger: challenger?.name,
+      //   acceptor: acceptor?.name,
+      //   currentPlayerRole,
+      //   firstPlayerRole,
+      //   overlayShown: state.overlayShown
+      // });
       
       // Show overlay instantly when game transitions to playing
       setState(s => ({ 
         ...s, 
         firstPlayerData: { 
-          currentPlayer: { id: current.playerId, name: current.name || 'You' }, 
-          opponent: { id: opp.playerId, name: opp.name || 'Opponent' }, 
+          currentPlayer: { id: current.playerId, name: current.name || 'You', photoUrl: current.photoUrl || currentGame?.players?.challenger?.photoUrl || currentGame?.players?.acceptor?.photoUrl || '' }, 
+          opponent: { id: opp.playerId, name: opp.name || 'Opponent', photoUrl: opp.photoUrl || currentGame?.players?.acceptor?.photoUrl || currentGame?.players?.challenger?.photoUrl || '' }, 
           firstPlayerId: firstPlayerRole === 'challenger' ? challenger.playerId : acceptor.playerId 
         }, 
         showFirstPlayerOverlay: true,
@@ -358,8 +370,13 @@ const LobbyPage: React.FC = () => {
           {/* Player Status */}
           <div className="space-y-3 flex-shrink-0">
             <div className={styles.playerGrid}>
-              <PlayerCard player={currentPlayer || undefined} isCurrentUser={true} />
-              <PlayerCard player={opponent} isCurrentUser={false} />
+              <PlayerCard player={currentPlayer ? { ...currentPlayer, photoUrl: user?.photoUrl } : undefined} isCurrentUser={true} />
+              <PlayerCard
+                player={currentPlayerRole === 'challenger'
+                  ? currentGame?.players?.acceptor
+                  : currentGame?.players?.challenger}
+                isCurrentUser={false}
+              />
             </div>
             {shouldShowRoomCode() && (
               <div className={styles.roomCode}>

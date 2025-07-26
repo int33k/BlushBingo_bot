@@ -16,6 +16,7 @@ export interface Player {
   name: string;
   username?: string;
   telegramId?: string;
+  photoUrl?: string;
   status: PlayerStatus;
   connected: boolean;
   card?: number[][];
@@ -95,5 +96,6 @@ export interface User {
   name: string;
   username?: string;
   telegramId?: string;
+  photoUrl?: string;
   isAuthenticated: boolean;
 }

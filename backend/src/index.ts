@@ -29,10 +29,10 @@ const createConfigs = () => {
     },
     csp: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", ...(csp.allowUnsafeInline ? ["'unsafe-inline'"] : [])],
+      scriptSrc: ["'self'", ...(csp.allowUnsafeInline ? ["'unsafe-inline'"] : []), ...(csp.trustedDomains || [])],
       styleSrc: ["'self'", ...(csp.allowUnsafeInline ? ["'unsafe-inline'"] : [])],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'", corsBase.origin, ...csp.trustedDomains],
+      imgSrc: ["'self'", "data:", "https://t.me", "https://telegram.org","'https://cdn5.cdn-telegram.org"],
+      connectSrc: ["'self'", corsBase.origin, ...(csp.trustedDomains || [])],
       fontSrc: ["'self'"], objectSrc: ["'none'"], mediaSrc: ["'self'"], frameSrc: ["'none'"],
       upgradeInsecureRequests: []
     },
@@ -47,9 +47,47 @@ const createConfigs = () => {
 const createApp = (configs: ReturnType<typeof createConfigs>) => {
   const app = express();
 
-  // Middleware chain using method chaining
+
+  // Global CSP header for all responses
+  app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://telegram.org https://t.me",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https://t.me https://telegram.org https://cdn1.cdn-telegram.org https://cdn2.cdn-telegram.org https://cdn3.cdn-telegram.org https://cdn4.cdn-telegram.org https://cdn5.cdn-telegram.org",
+      "connect-src 'self' https://t.me https://telegram.org",
+      "font-src 'self'",
+      "object-src 'none'",
+      "media-src 'self'",
+      "frame-src 'none'"
+    ].join('; '));
+    next();
+  });
+
+  // ...existing code...
   [
-    helmet({ contentSecurityPolicy: { directives: configs.csp } }),
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          "script-src": configs.csp.scriptSrc,
+          "style-src": configs.csp.styleSrc,
+          "img-src": [
+            "'self'",
+            "data:",
+            "https://t.me",
+            "https://telegram.org",
+            "https://cdn5.cdn-telegram.org"
+          ],
+          "connect-src": configs.csp.connectSrc,
+          "font-src": configs.csp.fontSrc,
+          "object-src": configs.csp.objectSrc,
+          "media-src": configs.csp.mediaSrc,
+          "frame-src": configs.csp.frameSrc,
+          "upgrade-insecure-requests": configs.csp.upgradeInsecureRequests
+        },
+      },
+    }),
     compression(),
     cors(configs.cors.express),
     express.json({ limit: '1mb' }),
@@ -64,11 +102,37 @@ const createApp = (configs: ReturnType<typeof createConfigs>) => {
 
   // Serve static files from frontend build (for production/Telegram)
   if (config.server.isProd || process.env.SERVE_FRONTEND === 'true') {
-    const frontendBuildPath = path.join(__dirname, '../../frontend/dist');
+    const frontendBuildPath = path.resolve(process.cwd(), '../frontend/dist');
+    // Set CSP header for all static file responses
+    app.use((req, res, next) => {
+      res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://telegram.org https://t.me",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https://t.me https://telegram.org https://cdn5.cdn-telegram.org",
+        "connect-src 'self' https://t.me https://telegram.org",
+        "font-src 'self'",
+        "object-src 'none'",
+        "media-src 'self'",
+        "frame-src 'none'"
+      ].join('; '));
+      next();
+    });
     app.use(express.static(frontendBuildPath));
-    
+
     // Handle React Router routes - serve index.html for non-API routes
     app.get(/^(?!\/api|\/socket\.io|\/health).*/, (req: Request, res: Response) => {
+      res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://telegram.org https://t.me",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https://t.me https://telegram.org https://cdn1.cdn-telegram.org https://cdn2.cdn-telegram.org https://cdn3.cdn-telegram.org https://cdn4.cdn-telegram.org https://cdn5.cdn-telegram.org",
+        "connect-src 'self' https://t.me https://telegram.org",
+        "font-src 'self'",
+        "object-src 'none'",
+        "media-src 'self'",
+        "frame-src 'none'"
+      ].join('; '));
       res.sendFile(path.join(frontendBuildPath, 'index.html'));
     });
   }

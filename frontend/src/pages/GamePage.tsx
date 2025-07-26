@@ -551,11 +551,11 @@ const GamePage: React.FC = () => {
         <div className="max-w-md mx-auto space-y-6">
           {/* Game Header */}
           <GameHeader
-            currentGame={currentGame}
-            currentPlayer={gameLogic.playerInfo.current || null}
-            opponent={gameLogic.playerInfo.opponent || null}
-            currentPlayerRole={gameLogic.playerInfo.role}
-          />
+        currentGame={currentGame}
+        currentPlayer={currentGame?.players?.[gameLogic.playerInfo.role as 'challenger' | 'acceptor' || 'challenger'] || null}
+        opponent={currentGame?.players?.[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || null}
+        currentPlayerRole={gameLogic.playerInfo.role}
+      />
 
           {/* Move History */}
           <MoveHistory
@@ -625,6 +625,12 @@ const GamePage: React.FC = () => {
           currentGame.winner === 'acceptor' ? (currentGame.players.acceptor?.name || 'A')[0].toUpperCase() :
           '?'
         }
+        winnerPhotoUrl={
+          !currentGame?.winner ? undefined :
+          currentGame.winner === 'challenger' ? currentGame.players.challenger?.photoUrl :
+          currentGame.winner === 'acceptor' ? currentGame.players.acceptor?.photoUrl :
+          undefined
+        }
         winReason={currentGame?.winReason}
         onClose={handleVictoryClose}
         onRematch={handleRematch}
@@ -633,16 +639,6 @@ const GamePage: React.FC = () => {
         isNavigating={uiState.isNavigating}
       />
       )}
-
-      {/* Instant Win Button - REMOVE IN PRODUCTION */}
-      <div className="fixed bottom-4 right-4">
-        <button
-          onClick={handleInstantWin}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-500 transition-all duration-300"
-        >
-          Instant Win
-        </button>
-      </div>
     </div>
   );
 };

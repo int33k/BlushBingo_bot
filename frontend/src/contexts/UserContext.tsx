@@ -12,31 +12,60 @@ interface UserProviderProps {
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // User initialization with logging
+  // User initialization with short polling/retry for Telegram user
   useEffect(() => {
     const storedUser = localStorage.getItem('bingoUser');
     const forceNewUser = new URLSearchParams(window.location.search).get('newuser') === 'true';
-    
-    console.log('Initializing user context:', { storedUser: !!storedUser, forceNewUser });
 
-    if (storedUser && !forceNewUser) {
-      try { 
-        const parsedUser = JSON.parse(storedUser);
-        console.log('Using stored user:', parsedUser);
-        setUser(parsedUser); 
-      }
-      catch (err) { 
-        console.error('Failed to parse stored user:', err);
-        localStorage.removeItem('bingoUser'); 
-      }
-    } else {
-      const identifier = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-      const newUser: User = { identifier, name: `Player_${identifier.slice(-5)}`, isAuthenticated: true };
-      console.log('Created new user:', newUser);
-      setUser(newUser);
-      localStorage.setItem('bingoUser', JSON.stringify(newUser));
-      if (forceNewUser) window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+    // Debug log for Telegram API
+    console.log('[Telegram Debug] window.Telegram:', window.Telegram);
+    if (window.Telegram && window.Telegram.WebApp) {
+      console.log('[Telegram Debug] window.Telegram.WebApp:', window.Telegram.WebApp);
+      console.log('[Telegram Debug] window.Telegram.WebApp.initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
     }
+
+    // Poll for Telegram user for up to 2 seconds
+    let attempts = 0;
+    const maxAttempts = 10;
+    const interval = setInterval(() => {
+      attempts++;
+      const telegramUser = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
+      if (telegramUser) {
+        const photoUrl = (telegramUser as { photo_url?: string }).photo_url;
+        console.log('[Telegram Debug] Telegram user found:', telegramUser);
+        console.log('[Telegram Debug] photoUrl:', photoUrl);
+        const identifier = telegramUser.id ? `telegram_${telegramUser.id}` : `user_${Date.now()}`;
+        const newUser: User = {
+          identifier,
+          name: telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : ''),
+          username: telegramUser.username,
+          telegramId: telegramUser.id?.toString(),
+          photoUrl,
+          isAuthenticated: true
+        };
+        setUser(newUser);
+        localStorage.setItem('bingoUser', JSON.stringify(newUser));
+        clearInterval(interval);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (storedUser && !forceNewUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          } catch {
+            localStorage.removeItem('bingoUser');
+          }
+        } else {
+          const identifier = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          const newUser: User = { identifier, name: `Player_${identifier.slice(-5)}`, isAuthenticated: true };
+          setUser(newUser);
+          localStorage.setItem('bingoUser', JSON.stringify(newUser));
+          if (forceNewUser) window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        }
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
   }, []);
 
   const login = (identifier: string, name?: string) => {

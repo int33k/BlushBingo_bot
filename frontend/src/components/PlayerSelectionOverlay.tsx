@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 interface Player {
   id: string;
   name: string;
+  photoUrl?: string;
 }
 
 interface PlayerSelectionOverlayProps {
@@ -19,7 +20,17 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   firstPlayerId,
   onFinish,
   isNavigating = false
-}) => {
+}): React.ReactElement => {
+  // Debug: Log photoUrl for both players in overlay
+  console.log('[PHOTOURL FLOW] PlayerSelectionOverlay:', {
+    currentPlayerPhotoUrl: currentPlayer?.photoUrl,
+    opponentPhotoUrl: opponent?.photoUrl
+  });
+  const isValidPhotoUrl = (url?: string) => {
+    if (!url || typeof url !== 'string') return false;
+    if (url.trim() === '' || url.trim().toLowerCase() === 'null') return false;
+    return /^https?:\/\//.test(url);
+  };
   console.log('[DEBUG] PlayerSelectionOverlay rendered with props:', {
     currentPlayer: currentPlayer?.name,
     opponent: opponent?.name,
@@ -30,7 +41,11 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(true);
 
-  const players = [currentPlayer, opponent];
+  // Ensure photoUrl fallback for both players
+  const players = [
+    { ...currentPlayer, photoUrl: currentPlayer.photoUrl || '' },
+    { ...opponent, photoUrl: opponent.photoUrl || '' }
+  ];
 
   useEffect(() => {
     console.log('[DEBUG] PlayerSelectionOverlay useEffect starting');
@@ -172,16 +187,26 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
                       </div>
                     )}
 
-                    {/* Player avatar */}
-                    <div className={`
-                      w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-bold transition-all duration-500
-                      ${selectedIndex === idx
-                        ? 'bg-gradient-to-br from-teal-400/20 to-purple-400/20 text-teal-400 shadow-lg'
-                        : 'bg-slate-600/30 text-slate-400'
-                      }
-                    `}>
-                      {player.name.charAt(0).toUpperCase()}
-                    </div>
+                {/* Player avatar */}
+                {isValidPhotoUrl(player?.photoUrl) ? (
+                  <img
+                    src={player.photoUrl}
+                    alt={player.name || 'Player'}
+                    className={`w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl object-cover`}
+                    style={{ borderRadius: '1rem' }}
+                    onError={e => (e.currentTarget.style.display = 'none')}
+                  />
+                ) : (
+                  <div className={`
+                    w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-bold transition-all duration-500
+                    ${selectedIndex === idx
+                      ? 'bg-gradient-to-br from-teal-400/20 to-purple-400/20 text-teal-400 shadow-lg'
+                      : 'bg-slate-600/20 text-slate-400'
+                    }
+                  `}>
+                    {(player?.name?.charAt(0) || '?').toUpperCase()}
+                  </div>
+                )}
 
                     {/* Player name */}
                     <div className={`

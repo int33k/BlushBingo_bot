@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <title>Blush Bingo</title>
+    <!-- Telegram WebApp API: moved to head for correct context injection -->
+    
     <style>
       body {
         margin: 0;
@@ -38,6 +41,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

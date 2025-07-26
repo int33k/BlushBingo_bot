@@ -4,18 +4,14 @@
   "description": "A real-time multiplayer Bingo game",
   "main": "index.js",
   "scripts": {
-    "start": "npm run build:frontend && npm run start:backend:serve",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "start:backend": "cd backend && npm start",
-    "start:frontend": "cd frontend && npm run preview",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "npm run build:frontend && cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "build:all": "npm run build:frontend && cd backend && npm run build",
-    "start:backend:serve": "cd backend && cross-env SERVE_FRONTEND=true npm start",
-    "start:telegram": "cd frontend && npm run build && cd ../backend && cross-env SERVE_FRONTEND=true npm start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npm run build && cd backend && cross-env SERVE_FRONTEND=true npm start",
+    "serve": "cd backend && cross-env SERVE_FRONTEND=true npm start"
   },
   "keywords": [
     "bingo",

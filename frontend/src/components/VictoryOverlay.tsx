@@ -5,6 +5,7 @@ interface VictoryOverlayProps {
   isWinner: boolean;
   winnerName: string;
   winnerInitial: string;
+  winnerPhotoUrl?: string;
   winReason?: 'bingo' | 'disconnection' | 'forfeit';
   onClose: () => void;
   onRematch: () => void;
@@ -14,8 +15,27 @@ interface VictoryOverlayProps {
 }
 
 const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
-  isVisible, isWinner, winnerName, winnerInitial, winReason, onClose, onRematch, rematchStatus, opponentConnected, isNavigating = false
-}) => {
+  isVisible,
+  isWinner,
+  winnerName,
+  winnerInitial,
+  winnerPhotoUrl,
+  winReason,
+  onClose,
+  onRematch,
+  rematchStatus,
+  opponentConnected,
+  isNavigating = false
+}): React.ReactElement => {
+  // Debug: Log winner photoUrl in victory overlay
+  console.log('[PHOTOURL FLOW] VictoryOverlay:', {
+    winnerPhotoUrl
+  });
+  const isValidPhotoUrl = (url?: string) => {
+    if (!url || typeof url !== 'string') return false;
+    if (url.trim() === '' || url.trim().toLowerCase() === 'null') return false;
+    return /^https?:\/\//.test(url);
+  };
   const [showContent, setShowContent] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -38,7 +58,7 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
     }
   }, [isVisible]);
 
-  if (!isVisible && !isNavigating) return null;
+  if (!isVisible && !isNavigating) return <></>;
 
   // Rematch configuration with modern styling
   const REMATCH_CONFIG = {
@@ -194,14 +214,28 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
                   ))}
                 </div>
                 
-                {/* Main avatar */}
-                <div className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-3xl sm:text-4xl font-black shadow-2xl border-4 transition-all duration-500 ${
-                  isWinner 
-                    ? 'bg-gradient-to-br from-teal-400 to-green-500 border-teal-300 shadow-teal-400/50 hover:scale-110' 
-                    : 'bg-gradient-to-br from-purple-400 to-pink-500 border-purple-300 shadow-purple-400/50'
-                }`}>
-                  <span className="text-white drop-shadow-lg">{winnerInitial}</span>
-                </div>
+                {/* Main avatar - show photo if available */}
+                {isValidPhotoUrl(winnerPhotoUrl) ? (
+                  <img
+                    src={winnerPhotoUrl}
+                    alt={winnerName || 'Winner'}
+                    className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 shadow-2xl transition-all duration-500 ${
+                      isWinner
+                        ? 'border-teal-300 shadow-teal-400/50'
+                        : 'border-purple-300 shadow-purple-400/50'
+                    }`}
+                    style={{ borderRadius: '1rem' }}
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-3xl sm:text-4xl font-black shadow-2xl border-4 transition-all duration-500 ${
+                    isWinner 
+                      ? 'bg-gradient-to-br from-teal-400 to-green-500 border-teal-300 shadow-teal-400/50 hover:scale-110' 
+                      : 'bg-gradient-to-br from-purple-400 to-pink-500 border-purple-300 shadow-purple-400/50'
+                  }`}>
+                    <span className="text-white drop-shadow-lg">{winnerInitial}</span>
+                  </div>
+                )}
                 
                 {/* Enhanced glow effect */}
                 <div className={`absolute inset-0 rounded-full blur-lg opacity-75 animate-pulse ${

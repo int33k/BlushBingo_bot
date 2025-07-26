@@ -7,6 +7,7 @@ export const PlayerSchema = new Schema({
   name: { type: String, required: true, trim: true },
   username: { type: String, trim: true, default: null },
   telegramId: { type: String, default: null },
+  photoUrl: { type: String, default: null },
   socketId: { type: String, default: null },
   connected: { type: Boolean, default: true },
   card: { type: [[Number]], default: null },
@@ -19,7 +20,7 @@ export const PlayerSchema = new Schema({
 
 // Interface using shared PlayerStatus type
 export interface PlayerDocument extends Document {
-  playerId: string; name: string; username?: string; telegramId?: string; socketId: string;
+  playerId: string; name: string; username?: string; telegramId?: string; photoUrl?: string; socketId: string;
   connected: boolean; card?: number[][]; score: number; markedCells?: Array<string | number>;
   status: PlayerStatus; completedLines?: number;
   markedLetters?: string[]; gameId?: string; [key: string]: any;

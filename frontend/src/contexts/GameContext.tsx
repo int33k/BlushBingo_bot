@@ -185,8 +185,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Ultra-compact game operations with inline logic and memoized fetchGame
   const operations = useMemo(() => ({
-    createGame: () => executeSocketOperation('game:create'),
-    joinGame: (gameId: string) => executeSocketOperation('game:join', { gameId }),
+    createGame: () => {
+      console.log('[PHOTOURL FLOW] createGame called with photoUrl:', user?.photoUrl);
+      return executeSocketOperation('game:create', user?.photoUrl ? { photoUrl: user.photoUrl } : {});
+    },
+    joinGame: (gameId: string) => {
+      console.log('[PHOTOURL FLOW] joinGame called with photoUrl:', user?.photoUrl);
+      return executeSocketOperation('game:join', user?.photoUrl ? { gameId, photoUrl: user.photoUrl } : { gameId });
+    },
     setPlayerReady: (card: number[][]) => state.currentGame ?
       executeSocketOperation('player:ready', { gameId: state.currentGame.gameId, playerId: user?.identifier, card: Array.isArray(card) ? card : null }) :
       Promise.reject(new Error('No active game')),

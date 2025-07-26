@@ -98,11 +98,24 @@ declare global {
 }
 
 export class TelegramWebAppService {
+
+//   public initialize(): void {
+//     if (!this.webApp || this.isInitialized) {
+//       return;
+//     }
+//     // The ready() method tells the Telegram client that the app is ready to be displayed.
+//     this.webApp.ready();
+//     this.isInitialized = true;
+//     console.log('Telegram WebApp Initialized.');
+//   }
+  
   private webApp: TelegramWebApp | null = null;
   private isInitialized = false;
 
   constructor() {
-    this.webApp = window.Telegram?.WebApp || null;
+    if (typeof window !== 'undefined' && window.Telegram) {
+      this.webApp = window.Telegram.WebApp;
+    }
   }
 
   public isAvailable(): boolean {
@@ -119,12 +132,12 @@ export class TelegramWebAppService {
     }
 
     try {
+      console.log('[TelegramWebAppService] Calling window.Telegram.WebApp.ready()...');
       this.webApp!.ready();
+      console.log('[TelegramWebAppService] window.Telegram.WebApp.ready() called.');
       this.webApp!.expand();
-      
       // Set theme based on Telegram's color scheme
       document.documentElement.setAttribute('data-telegram-theme', this.webApp!.colorScheme);
-      
       this.isInitialized = true;
       console.log('Telegram WebApp initialized');
     } catch (error) {

@@ -9,6 +9,7 @@ const GamePlayerSchema = new Schema({
   name: { type: String, required: true, trim: true },
   username: { type: String, trim: true, default: null },
   telegramId: { type: String, default: null },
+  photoUrl: { type: String, default: null },
   socketId: { type: String, default: null },
   connected: { type: Boolean, default: true },
   card: { type: [[Number]], default: null },

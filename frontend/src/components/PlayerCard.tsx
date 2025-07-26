@@ -12,6 +12,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   isCurrentUser = false,
   className = ''
 }) => {
+  const [avatarError, setAvatarError] = React.useState(false);
+  // Helper to check for valid photoUrl
+  const isValidPhotoUrl = (url?: string) => {
+    if (!url || typeof url !== 'string') return false;
+    if (url.trim() === '' || url.trim().toLowerCase() === 'null') return false;
+    // Optionally, check for valid URL format
+    return /^https?:\/\//.test(url);
+  };
   const getStatusColor = (status?: string, connected?: boolean) => {
     if (!player) return 'text-slate-400';
     if (player && connected === false) return 'text-orange-400';
@@ -91,13 +99,27 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r opacity-30 blur-lg ${
         isCurrentUser ? 'from-teal-400/20 to-teal-500/20' : 'from-purple-400/20 to-purple-500/20'
       }`} />
-      
+
       {/* Content */}
       <div className="relative z-10 flex items-center space-x-3">
         <div className="flex-shrink-0">
-          <div className={getAvatarStyles()}>
-            {getInitials(player?.name || (isCurrentUser ? 'You' : 'Opponent'))}
-          </div>
+          {
+            isValidPhotoUrl(player?.photoUrl) && !avatarError
+              ? (
+                  <img
+                    src={player?.photoUrl}
+                    alt={player?.name || 'Player'}
+                    className={getAvatarStyles() + ' object-cover'}
+                    style={{ width: '48px', height: '48px', borderRadius: '1rem' }}
+                    onError={() => setAvatarError(true)}
+                  />
+                )
+              : (
+                  <div className={getAvatarStyles()}>
+                    {getInitials(player?.name || (isCurrentUser ? 'You' : 'Opponent'))}
+                  </div>
+                )
+          }
         </div>
 
         <div className="flex-1 min-w-0">
@@ -106,7 +128,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
               {player?.name || (isCurrentUser ? 'You' : 'Opponent')}
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <span className="text-xs">{getStatusIndicator(player?.status, player?.connected)}</span>
             <div className={`text-xs font-medium ${getStatusColor(player?.status, player?.connected)}`}>

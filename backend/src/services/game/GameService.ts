@@ -101,12 +101,20 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
       logger.info(`Cleaned up ${deletedCount} existing games for player ${playerId} before creating new game`);
     }
     
+    // Pass photoUrl to player object
+    const photoUrl = playerData.photoUrl || null;
+    // Debug: Log photoUrl at game creation
+    console.log('[PHOTOURL FLOW] GameService.createGame challenger photoUrl:', photoUrl);
+    const challengerObj: any = { ...this.createPlayerObject(playerId, name) };
+    if (photoUrl) challengerObj.photoUrl = photoUrl;
     const game = new Game({
       gameId: await this.generateUniqueGameId(), status: 'waiting',
-      players: { challenger: this.createPlayerObject(playerId, name) },
+      players: { challenger: challengerObj },
       currentTurn: null, moves: [], winner: null, winReason: null, connectedPlayers: [playerId]
     });
     game.updateStatusMessage();
+    // Debug: Log game object after creation
+    console.log('[PHOTOURL FLOW] GameService.createGame persisted:', game.players);
     return this.repository.save(game);
   }
 
@@ -121,7 +129,23 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
       logger.info(`Cleaned up ${deletedCount} existing games for player ${playerId} before joining game ${gameId}`);
     }
     
-    game.players.acceptor = { ...this.createPlayerObject(playerId, name), username: name };
+    // Pass photoUrl to player object
+    let photoUrl = typeof playerData.photoUrl === 'string' ? playerData.photoUrl : undefined;
+    // If photoUrl is missing, try to get it from other sources (socket.data, etc)
+    if (!photoUrl && playerData.identifier) {
+      // Try to get from game.players.challenger if this player is challenger
+      if (game.players.challenger && game.players.challenger.playerId === playerId && game.players.challenger.photoUrl) {
+        photoUrl = game.players.challenger.photoUrl;
+      }
+    }
+    // Debug: Log photoUrl at game join
+    console.log('[PHOTOURL FLOW] GameService.joinGame acceptor photoUrl:', photoUrl, 'playerData:', playerData);
+    // Always update acceptor's photoUrl if present
+    const acceptorObj: any = { ...this.createPlayerObject(playerId, name), username: name };
+    if (photoUrl) acceptorObj.photoUrl = photoUrl;
+    game.players.acceptor = acceptorObj;
+    // Debug: Log game object after join
+    console.log('[PHOTOURL FLOW] GameService.joinGame persisted:', game.players);
     game.status = 'lobby';
     game.addConnectedPlayer(playerId);
     updateLastActivity(game);
@@ -170,7 +194,10 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
           card: undefined, // No pre-filled cards
           markedCells: [],
           completedLines: 0,
-          markedLetters: []
+          markedLetters: [],
+          photoUrl: acceptor.photoUrl || null
+          // Debug: Log photoUrl at rematch acceptor
+          , _debugPhotoUrl: acceptor.photoUrl
         },
         acceptor: { 
           ...this.createPlayerObject(challenger.playerId, challenger.name, 'waiting'), 
@@ -178,7 +205,10 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
           card: undefined, // No pre-filled cards
           markedCells: [],
           completedLines: 0,
-          markedLetters: []
+          markedLetters: [],
+          photoUrl: challenger.photoUrl || null
+          // Debug: Log photoUrl at rematch challenger
+          , _debugPhotoUrl: challenger.photoUrl
         }
       },
       currentTurn: null, // No turn until game starts
