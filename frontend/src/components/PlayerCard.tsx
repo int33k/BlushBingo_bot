@@ -33,7 +33,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   };
 
   const getStatusText = (status?: string, connected?: boolean) => {
-    if (!player) return 'Waiting for player...';
+    if (!player) return 'Waiting 4 player...';
     if (player && connected === false) return (
       <>
         Dis -

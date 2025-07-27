@@ -30,9 +30,12 @@ const GameHeader: React.FC<GameHeaderProps> = (props) => {
   if (!currentGame) return null;
 
   return (
-    <div className="flex justify-between items-center w-full max-w-[320px] mx-auto">
+    <div
+      className="flex justify-between items-center w-full mx-auto"
+      style={{ maxWidth: '360px', minHeight: '8vh', margin: '0 auto', paddingTop: '2vh', paddingBottom: '2vh' }}
+    >
       {/* Current Player */}
-      <div className="flex items-center gap-3 relative">
+      <div className="flex items-center gap-3 flex-1 min-w-0 relative">
         {currentGame.currentTurn === currentPlayerRole && (
           <div className="absolute -inset-2 bg-teal-400/10 rounded-2xl border-2 border-teal-400/40" />
         )}
@@ -64,7 +67,7 @@ const GameHeader: React.FC<GameHeaderProps> = (props) => {
       </div>
 
       {/* Opponent */}
-      <div className="flex items-center gap-3 flex-row-reverse relative">
+      <div className="flex items-center gap-3 flex-1 min-w-0 flex-row-reverse relative">
         {currentGame.currentTurn !== currentPlayerRole && (
           <div className="absolute -inset-2 bg-purple-400/10 rounded-2xl border-2 border-purple-400/40" />
         )}

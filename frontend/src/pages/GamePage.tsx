@@ -314,50 +314,50 @@ const GamePage: React.FC = () => {
   }, [currentGame, gameLogic.markedLetters, gameLogic.playerInfo, gameId, sendSocketMessage]);
 
   // Instant win function for testing - bypasses normal validation
-  const handleInstantWin = useCallback(() => {
-    if (!currentGame || currentGame.status !== 'playing' || !gameLogic.playerInfo.current?.playerId) return;
+  // const handleInstantWin = useCallback(() => {
+  //   if (!currentGame || currentGame.status !== 'playing' || !gameLogic.playerInfo.current?.playerId) return;
     
-    // Start bingo animation immediately
-    setUIState(prev => ({ ...prev, showBingoAnimation: true, bingoAnimationComplete: false }));
+  //   // Start bingo animation immediately
+  //   setUIState(prev => ({ ...prev, showBingoAnimation: true, bingoAnimationComplete: false }));
     
-    // Set marked letters to simulate 5 completed lines in UI
-    gameLogic.setMarkedLetters([true, true, true, true, true]);
+  //   // Set marked letters to simulate 5 completed lines in UI
+  //   gameLogic.setMarkedLetters([true, true, true, true, true]);
     
-    // Call special instant win endpoint that will set completedLines to 5 and then claim bingo
-    const instantWinPayload = {
-      gameId,
-      playerId: gameLogic.playerInfo.current.playerId
-    };
+  //   // Call special instant win endpoint that will set completedLines to 5 and then claim bingo
+  //   const instantWinPayload = {
+  //     gameId,
+  //     playerId: gameLogic.playerInfo.current.playerId
+  //   };
     
-    const success = sendSocketMessage('game:instantWin', instantWinPayload, (response: unknown) => {
-      console.log('Instant win response:', response);
-      const ack = response as { success?: boolean; error?: string };
-      if (ack?.success) {
-        console.log('Instant win successful via socket');
-      } else {
-        console.log('Instant win failed via socket:', ack?.error);
-      }
-    });
+  //   const success = sendSocketMessage('game:instantWin', instantWinPayload, (response: unknown) => {
+  //     console.log('Instant win response:', response);
+  //     const ack = response as { success?: boolean; error?: string };
+  //     if (ack?.success) {
+  //       console.log('Instant win successful via socket');
+  //     } else {
+  //       console.log('Instant win failed via socket:', ack?.error);
+  //     }
+  //   });
     
-    if (!success) {
-      console.log('Socket not available, trying API fallback');
-      // Fallback to API
-      apiCall(`/players/${gameId}/instant-win`, instantWinPayload)
-        .then(() => {
-          console.log('Instant win successful via API');
-        })
-        .catch((error) => {
-          console.log('Instant win API failed:', error);
-        });
-    }
+  //   if (!success) {
+  //     console.log('Socket not available, trying API fallback');
+  //     // Fallback to API
+  //     apiCall(`/players/${gameId}/instant-win`, instantWinPayload)
+  //       .then(() => {
+  //         console.log('Instant win successful via API');
+  //       })
+  //       .catch((error) => {
+  //         console.log('Instant win API failed:', error);
+  //       });
+  //   }
     
-    // Set animation complete after reasonable delay
-    setTimeout(() => {
-      setUIState(prev => ({ ...prev, bingoAnimationComplete: true }));
-    }, 2000);
+  //   // Set animation complete after reasonable delay
+  //   setTimeout(() => {
+  //     setUIState(prev => ({ ...prev, bingoAnimationComplete: true }));
+  //   }, 2000);
     
-    showNotification('🏆 Instant win activated!', 'success');
-  }, [currentGame, gameLogic, gameId, sendSocketMessage, showNotification]);
+  //   showNotification('🏆 Instant win activated!', 'success');
+  // }, [currentGame, gameLogic, gameId, sendSocketMessage, showNotification]);
 
   const handleRematch = useCallback(() => {
     if (!currentGame || !gameLogic.playerInfo.current) return;
@@ -528,7 +528,10 @@ const GamePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-white relative overflow-x-hidden">
+    <div
+      className="bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-white relative overflow-x-hidden flex flex-col"
+      style={{ minHeight: '100vh', height: '100vh', maxHeight: '100vh' }}
+    >
       {/* Notification Banner */}
       {uiState.notification && (
         <NotificationBanner 
@@ -547,21 +550,26 @@ const GamePage: React.FC = () => {
         </div>
       )}
 
-      <div className="px-4 pt-7 pb-6">
-        <div className="max-w-md mx-auto space-y-6">
+      <div className="flex-1 flex flex-col justify-between px-4" style={{ minHeight: '0' }}>
+        <div className="w-full mx-auto" style={{ maxWidth: '96vw' }}>
           {/* Game Header */}
-          <GameHeader
-        currentGame={currentGame}
-        currentPlayer={currentGame?.players?.[gameLogic.playerInfo.role as 'challenger' | 'acceptor' || 'challenger'] || null}
-        opponent={currentGame?.players?.[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || null}
-        currentPlayerRole={gameLogic.playerInfo.role}
-      />
+          <div className="w-full" style={{ marginTop: '1vh' }}>
+            <GameHeader
+              currentGame={currentGame}
+              currentPlayer={currentGame?.players?.[gameLogic.playerInfo.role as 'challenger' | 'acceptor' || 'challenger'] || null}
+              opponent={currentGame?.players?.[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || null}
+              currentPlayerRole={gameLogic.playerInfo.role}
+            />
+          </div>
 
           {/* Move History */}
-          <MoveHistory
-            moveHistory={gameLogic.moveHistory}
-            currentPlayerId={gameLogic.playerInfo.current?.playerId}
-          />
+          <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '3vh' }}>
+            <MoveHistory
+              moveHistory={gameLogic.moveHistory}
+              currentPlayerId={gameLogic.playerInfo.current?.playerId}
+              className="py-1"
+            />
+          </div>
 
           {/* Game Bingo Card */}
           <GameBingoCard
@@ -570,34 +578,30 @@ const GamePage: React.FC = () => {
             isCellInCompletedLine={gameLogic.isCellInCompletedLine}
             currentPlayerRole={gameLogic.playerInfo.role}
             currentGame={currentGame}
+            className="w-full mx-auto"
+            cellPadding="py-[2vw] px-[2vw]"
           />
 
-          {/* BINGO Letters */}
-          <BingoLetters
-            activeLetters={gameLogic.activeLetters}
-            markedLetters={gameLogic.markedLetters}
-            onLetterClick={handleLetterClick}
-          />
+          {/* BINGO Progress Bar (BINGO Letters) */}
+          <div className="w-full" style={{ maxWidth: '96vw', marginTop: '1vh', marginBottom: '1vh' }}>
+            <BingoLetters
+              activeLetters={gameLogic.activeLetters}
+              markedLetters={gameLogic.markedLetters}
+              onLetterClick={handleLetterClick}
+              containerClassName="grid grid-cols-5 gap-[2vw]"
+              letterClassName="text-center py-[2.5vw] rounded-xl font-bold text-xl transition-all duration-300 relative border-2 backdrop-blur-sm"
+            />
+          </div>
+        </div>
 
-          {/* BINGO STOP Button */}
+        {/* BINGO STOP Button at the bottom */}
+        <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '2vh' }}>
           <BingoButton
             currentGame={currentGame}
             markedLetters={gameLogic.markedLetters}
             onBingoStop={handleBingoStop}
+            className="w-full"
           />
-
-          {/* Instant Win Button - For Testing Only */}
-          {currentGame?.status === 'playing' && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={handleInstantWin}
-                className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-semibold hover:from-purple-500 hover:to-purple-400 transition-all duration-300 shadow-lg border-2 border-purple-400/50"
-              >
-                🏆 Instant Win (Testing)
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

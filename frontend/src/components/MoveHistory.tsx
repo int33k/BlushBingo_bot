@@ -9,11 +9,13 @@ interface Move {
 interface MoveHistoryProps {
   moveHistory: Move[];
   currentPlayerId?: string;
+  className?: string;
 }
 
 const MoveHistory: React.FC<MoveHistoryProps> = ({
   moveHistory,
-  currentPlayerId
+  currentPlayerId,
+  className = ''
 }) => {
   const movesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -25,8 +27,8 @@ const MoveHistory: React.FC<MoveHistoryProps> = ({
   }, [moveHistory]);
 
   return (
-    <div className="w-full max-w-[320px] mx-auto">
-      <div className="bg-gradient-to-br from-slate-800/80 to-slate-700/60 backdrop-blur-sm rounded-2xl p-4 border border-teal-400/30 shadow-lg">
+    <div className={`w-full max-w-[360px] mx-auto ${className}`.trim()}>
+      <div className="bg-gradient-to-br from-slate-800/80 to-slate-700/60 backdrop-blur-sm rounded-2xl p-2 border border-teal-400/30 shadow-lg">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-teal-400 font-semibold text-sm">Move History</h3>
           <div className="text-teal-400/70 text-xs">

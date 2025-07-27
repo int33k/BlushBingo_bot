@@ -294,10 +294,10 @@ const LobbyPage: React.FC = () => {
 
   // Styles
   const styles = useMemo(() => ({
-    container: 'h-screen bg-gray-900 text-white relative flex flex-col',
-    content: `flex-1 flex flex-col px-4 ${isReconnecting ? 'pt-12' : 'pt-4'}`,
-    maxWidth: 'max-w-md mx-auto flex flex-col h-full',
-    playerGrid: 'grid grid-cols-2 gap-3',
+    container: 'min-h-screen bg-gray-900 text-white relative flex flex-col overflow-y-auto',
+    content: `flex-1 flex flex-col px-2 pt-4`,
+    maxWidth: 'w-full max-w-[400px] mx-auto flex flex-col h-full',
+    playerGrid: 'grid grid-cols-2 gap-4',
     roomCode: 'text-center p-3 border-2 border-pink-400 rounded-lg bg-pink-400/10 shadow-lg shadow-pink-400/30',
     roomCodeLabel: 'text-pink-400 font-semibold mb-1 text-xs tracking-wider',
     roomCodeValue: 'text-xl font-bold text-pink-400 tracking-wider',
@@ -307,7 +307,7 @@ const LobbyPage: React.FC = () => {
     statusText: 'text-center text-amber-400 italic text-sm pb-6',
     reconnecting: 'fixed top-0 left-0 right-0 z-40',
     reconnectingBanner: 'bg-orange-600 text-white text-center py-2 text-sm'
-  }), [isReconnecting]);
+  }), []);
 
 
   // Loading & Error states
@@ -378,10 +378,10 @@ const LobbyPage: React.FC = () => {
       })()}
 
       <div className={styles.content}>
-        <div className={styles.maxWidth}>
-          {/* Player Status */}
-          <div className="space-y-3 flex-shrink-0">
-            <div className={styles.playerGrid}>
+        <div className="min-h-screen flex flex-col">
+          {/* Top Section: Player Info and Room Code */}
+          <div className="w-full">
+            <div className="grid grid-cols-2 gap-4 w-full max-w-[360px] mx-auto">
               <PlayerCard player={currentPlayer ? { ...currentPlayer, photoUrl: user?.photoUrl } : undefined} isCurrentUser={true} />
               <PlayerCard
                 player={currentPlayerRole === 'challenger'
@@ -391,33 +391,32 @@ const LobbyPage: React.FC = () => {
               />
             </div>
             {shouldShowRoomCode() && (
-              <div className={styles.roomCode}>
+              <div className={styles.roomCode + ' w-full max-w-[360px] mx-auto mt-4'}>
                 <div className={styles.roomCodeLabel}>ROOM CODE</div>
                 <div className={styles.roomCodeValue}>{gameId}</div>
               </div>
             )}
           </div>
 
-          {/* Bingo Card */}
-          <div className="py-2 flex-1 flex flex-col justify-center">
+          {/* Middle Section: Bingo Card (flex-1 for vertical centering) */}
+          <div className="flex-1 flex justify-center items-center w-full">
             <BingoCard
               card={state.playerCard}
               onCardChange={handleCardChange}
               isEditable={(currentGame?.status === 'waiting' || currentGame?.status === 'lobby') && (!currentPlayer || currentPlayer?.status !== 'ready')}
+              className="w-full max-w-[360px] mx-auto"
             />
           </div>
 
-          {/* Action Button and Status - Always at bottom */}
-          <div className="space-y-3 flex-shrink-0 mt-auto">
+          {/* Bottom Section: Ready Button and Status */}
+          <div className="w-full max-w-md mx-auto px-4 pb-2 flex flex-col items-center">
             {isCardComplete() && (
               <button
                 type="button"
                 onClick={currentPlayer?.status !== 'ready' ? handleSetReady : undefined}
                 disabled={isReadyLoading || !isConnected || currentPlayer?.status === 'ready'}
-                className={`
-                  ${styles.readyButton}
-                  ${currentPlayer?.status === 'ready' ? styles.readyButtonDone : styles.readyButtonActive}
-                `}
+                className={`w-full max-w-[360px] mx-auto ${styles.readyButton} ${currentPlayer?.status === 'ready' ? styles.readyButtonDone : styles.readyButtonActive}`}
+                style={{ marginBottom: 0.3 }}
               >
                 {currentPlayer?.status === 'ready' ? (
                   <>
@@ -429,7 +428,7 @@ const LobbyPage: React.FC = () => {
                 )}
               </button>
             )}
-            <div className={styles.statusText}>{getStatusMessage()}</div>
+            <div className={styles.statusText + ' w-full max-w-[360px] mx-auto'} style={{ marginBottom: 0 }}>{getStatusMessage()}</div>
           </div>
         </div>
       </div>
