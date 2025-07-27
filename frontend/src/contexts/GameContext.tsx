@@ -202,5 +202,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     leaveGame: () => setState(s => ({ ...s, currentGame: null, error: null }))
   }), [executeSocketOperation, state.currentGame, state.isLoading, user]);
 
-  return <GameContext.Provider value={{ ...state, ...operations }}>{children}</GameContext.Provider>;
+  // Memoize context value to avoid unnecessary re-renders
+  const contextValue = useMemo(() => ({ ...state, ...operations }), [state, operations]);
+  return <GameContext.Provider value={contextValue}>{children}</GameContext.Provider>;
 };

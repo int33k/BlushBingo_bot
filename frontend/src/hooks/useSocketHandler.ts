@@ -13,13 +13,10 @@ export const useSocketHandler = () => {
     data: Record<string, unknown>, 
     callback?: (ack: unknown) => void
   ) => {
-    console.log('[DEBUG] sendSocketMessage called:', { event, data, userAvailable: !!user });
-    
+    // ...existing code...
     if (!user) {
-      console.error('Cannot send socket message: User not authenticated', { user });
       return false;
     }
-    
     if (emit) { 
       const messageData = { 
         ...data, 
@@ -28,14 +25,9 @@ export const useSocketHandler = () => {
         _messageId: generateId(), 
         _clientTimestamp: Date.now() 
       };
-      
-      console.log('[DEBUG] Emitting socket event with auth:', { event, messageData });
-      
       emit(event, messageData, callback); 
       return true; 
     }
-    
-    console.error('Cannot send socket message: emit function not available');
     return false;
   }, [emit, user]);
 

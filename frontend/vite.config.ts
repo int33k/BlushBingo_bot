@@ -37,7 +37,12 @@ export default defineConfig({
           return 'assets/[name]-[hash][extname]'
         }
       }
-    }
+    },
+    // Enable brotli and gzip compression for production assets
+    minify: 'esbuild',
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
+    sourcemap: false
   },
   esbuild: {
     // Ensure proper JavaScript output for Edge

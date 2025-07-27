@@ -20,24 +20,20 @@ const LobbyPage: React.FC = () => {
     playerCard: Array(5).fill(null).map(() => Array(5).fill(0)) as number[][], 
     notification: null as Notification | null, 
     showFirstPlayerOverlay: false, 
-    firstPlayerData: null as { currentPlayer: { id: string; name: string }; opponent: { id: string; name: string }; firstPlayerId: string } | null,
+    firstPlayerData: null as { currentPlayer: { playerId: string; name: string; status: import('../types').PlayerStatus; connected: boolean; photoUrl?: string }; opponent: { playerId: string; name: string; status: import('../types').PlayerStatus; connected: boolean; photoUrl?: string }; firstPlayerId: string } | null,
     isNavigating: false,
     overlayShown: false // Flag to prevent multiple overlay triggers
   });
   const fetchedRef = useRef<string | null>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
 
   // Ultra-compact memoized helpers with consolidated logic and optimized validation
   const { currentPlayerRole, currentPlayer, opponent, isCardComplete, shouldShowRoomCode, getStatusMessage } = useMemo(() => {
     const role = currentGame?.players.challenger?.playerId === user?.identifier ? 'challenger' : 'acceptor';
     const current = currentGame?.players[role];
     let opp = currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger'];
-    // Debug: Log opponent photoUrl at mapping
-    console.log('[PHOTOURL FLOW] Mapping opponent:', {
-      opp,
-      oppPhotoUrl: opp?.photoUrl,
-      backendPhotoUrl: currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger']?.photoUrl
-    });
+    // ...existing code...
     if (opp && !opp.photoUrl && currentGame?.players[role === 'challenger' ? 'acceptor' : 'challenger']?.photoUrl) {
       const oppPlayer = currentGame.players[role === 'challenger' ? 'acceptor' : 'challenger'];
       if (oppPlayer && oppPlayer.photoUrl) {
@@ -91,8 +87,9 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     if (!gameId || !isConnected || !user || fetchedRef.current === gameId) return;
     fetchedRef.current = gameId;
+    setState(s => ({ ...s, notification: null }));
     setFetchFailed(false);
-    // Try to fetch game first
+    setInitialLoading(true);
     fetchGame(gameId)
       .then((gameResponse) => {
         const players = gameResponse.game?.players;
@@ -104,12 +101,12 @@ const LobbyPage: React.FC = () => {
           emit('connection:reconnect', { gameId, playerId: user.identifier });
         }
       })
-      .catch((error: Error) => {
-        console.error('Failed to fetch game:', error);
+      .catch(() => {
         setFetchFailed(true);
         setState(s => ({ ...s, notification: { message: 'Failed to load game. Please check the game code.', type: 'error' } }));
         setTimeout(() => navigate('/'), 3000);
-      });
+      })
+      .finally(() => setInitialLoading(false));
   }, [gameId, currentGame, isConnected, user, fetchGame, navigate, emit, setFetchFailed, joinGame]);
 
   // Prevent back navigation during lobby and ensure disconnection
@@ -162,7 +159,7 @@ const LobbyPage: React.FC = () => {
       const current = currentPlayerRole === 'challenger' ? challenger : acceptor;
       const opp = currentPlayerRole === 'challenger' ? acceptor : challenger;
       
-      // console.log('[DEBUG] Setting up PlayerSelectionOverlay:', {
+      // ...existing code...
       //   gameStatus: currentGame.status,
       //   currentTurn: currentGame.currentTurn,
       //   challenger: challenger?.name,
@@ -176,8 +173,8 @@ const LobbyPage: React.FC = () => {
       setState(s => ({ 
         ...s, 
         firstPlayerData: { 
-          currentPlayer: { id: current.playerId, name: current.name || 'You', photoUrl: current.photoUrl || currentGame?.players?.challenger?.photoUrl || currentGame?.players?.acceptor?.photoUrl || '' }, 
-          opponent: { id: opp.playerId, name: opp.name || 'Opponent', photoUrl: opp.photoUrl || currentGame?.players?.acceptor?.photoUrl || currentGame?.players?.challenger?.photoUrl || '' }, 
+          currentPlayer: { playerId: current.playerId, name: current.name || 'You', status: current.status, connected: current.connected, photoUrl: current.photoUrl || currentGame?.players?.challenger?.photoUrl || currentGame?.players?.acceptor?.photoUrl || '' }, 
+          opponent: { playerId: opp.playerId, name: opp.name || 'Opponent', status: opp.status, connected: opp.connected, photoUrl: opp.photoUrl || currentGame?.players?.acceptor?.photoUrl || currentGame?.players?.challenger?.photoUrl || '' }, 
           firstPlayerId: firstPlayerRole === 'challenger' ? challenger.playerId : acceptor.playerId 
         }, 
         showFirstPlayerOverlay: true,
@@ -191,7 +188,7 @@ const LobbyPage: React.FC = () => {
   useEffect(() => {
     if (currentGame?.status === 'waiting' && currentPlayer?.status === 'waiting') {
       // This is a fresh rematch game - don't restore old cards
-      console.log(`[DEBUG] Fresh rematch game detected - keeping empty card`);
+      // ...existing code...
       return;
     }
     
@@ -201,7 +198,7 @@ const LobbyPage: React.FC = () => {
       const cardsDifferent = !currentCardEmpty && JSON.stringify(state.playerCard) !== JSON.stringify(currentPlayer.card);
       
       if (currentCardEmpty || cardsDifferent) {
-        console.log(`[DEBUG] Restoring player card from game state:`, currentPlayer.card);
+        // ...existing code...
         setState(s => ({ ...s, playerCard: currentPlayer.card! }));
       }
     }
@@ -216,36 +213,43 @@ const LobbyPage: React.FC = () => {
     const debouncedFetch = () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
       fetchTimeout = setTimeout(() => {
-        console.log('[DEBUG] Executing debounced fetchGame');
+        // ...existing code...
         fetchGame(gameId);
       }, 100); // Small delay to batch rapid updates
     };
 
     const handlePlayerJoined = (data: unknown) => {
-      console.log('[DEBUG] Received game:playerJoined event in LobbyPage:', data);
       const { game } = data as { game?: typeof currentGame };
-      if (game && game.gameId === gameId) {
-        console.log('[DEBUG] Fetching updated game state after player joined');
+      // If currentGame is not initialized, fetch immediately
+      if (!currentGame && game && game.gameId === gameId) {
+        fetchGame(gameId);
+        return;
+      }
+      if (currentGame && game && game.gameId === gameId) {
         debouncedFetch();
       }
     };
 
     const handlePlayerReadyStatus = (data: unknown) => {
-      console.log('[DEBUG] Received player:readyStatus event in LobbyPage:', data);
       const { game } = data as { game?: typeof currentGame };
-      if (game && game.gameId === gameId) {
-        console.log('[DEBUG] Fetching updated game state after ready status change');
+      // If currentGame is not initialized, fetch immediately
+      if (!currentGame && game && game.gameId === gameId) {
+        fetchGame(gameId);
+        return;
+      }
+      if (currentGame && game && game.gameId === gameId) {
         debouncedFetch();
       }
     };
 
     const handleGameStarted = (data: unknown) => {
-      console.log('[DEBUG] Received game:started event in LobbyPage:', data);
       const { game } = data as { game?: typeof currentGame };
-      if (game && game.gameId === gameId) {
-        console.log('[DEBUG] Game started, fetching updated game state');
-        // Don't navigate immediately - let the PlayerSelectionOverlay show first
-        // The overlay will handle navigation when it finishes
+      // If currentGame is not initialized, fetch immediately
+      if (!currentGame && game && game.gameId === gameId) {
+        fetchGame(gameId);
+        return;
+      }
+      if (currentGame && game && game.gameId === gameId) {
         debouncedFetch();
       }
     };
@@ -261,7 +265,7 @@ const LobbyPage: React.FC = () => {
       
       // Check if the disconnecting player is our opponent
       if (opponent && disconnectData.playerId === opponent.playerId) {
-        console.log(`Opponent ${disconnectData.playerId} disconnected from lobby ${gameId}`);
+        // ...existing code...
         // Force refresh the game state to reflect opponent disconnection
         debouncedFetch();
       }
@@ -313,7 +317,16 @@ const LobbyPage: React.FC = () => {
   // Loading & Error states
   // Show loading while explicitly loading, or while we have attempted fetch but no result yet, or while dependencies aren't ready
   if (!location.state?.fromLaunch && ((fetchedRef.current === gameId && !currentGame && !fetchFailed) || (!isConnected || !user))) {
-    return <div className={`${styles.container} flex items-center justify-center`}><div className="text-white text-xl">Loading game...</div></div>;
+  if (initialLoading) {
+    return (
+      <div className={`${styles.container} flex items-center justify-center`}>
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="text-xl font-semibold text-teal-400">Loading game...</div>
+        </div>
+      </div>
+    );
+  }
   }
   // Show "Game not found" only if fetch failed and dependencies are ready
   if (!currentGame && fetchFailed && isConnected && user) return (
@@ -336,46 +349,20 @@ const LobbyPage: React.FC = () => {
     <div className={styles.container}>
       {state.notification && <NotificationBanner {...state.notification} onClose={() => setState(s => ({ ...s, notification: null }))} />}
       {isReconnecting && <div className={styles.reconnecting}><div className={styles.reconnectingBanner}>Reconnecting to game server...</div></div>}
-      {/* Debug and render overlay */}
-      {(() => {
-        console.log('[DEBUG] Overlay render check:', {
-          showFirstPlayerOverlay: state.showFirstPlayerOverlay,
-          hasFirstPlayerData: !!state.firstPlayerData,
-          isNavigating: state.isNavigating,
-          overlayShown: state.overlayShown,
-          gameStatus: currentGame?.status
-        });
-        
-        return state.showFirstPlayerOverlay && state.firstPlayerData ? (
-          <PlayerSelectionOverlay 
-            {...state.firstPlayerData} 
-            isNavigating={state.isNavigating}
-            onFinish={() => { 
-              console.log('[DEBUG] PlayerSelectionOverlay finished, navigating to game');
-              // Prevent multiple navigation calls
-              if (state.isNavigating) {
-                console.log('[DEBUG] Already navigating, ignoring onFinish call');
-                return;
-              }
-              
-              console.log('[DEBUG] Starting navigation process');
-              // Set navigation state and start navigation
-              setState(s => ({ ...s, isNavigating: true }));
-              
-              // Navigate with a slight delay to ensure overlay completes
-              setTimeout(() => {
-                console.log('[DEBUG] Executing navigation to game page');
-                navigate(`/game/${gameId}`);
-                // Reset overlay state after navigation
-                setTimeout(() => {
-                  console.log('[DEBUG] Cleaning up overlay state');
-                  setState(s => ({ ...s, showFirstPlayerOverlay: false, isNavigating: false }));
-                }, 300);
-              }, 100);
-            }} 
-          />
-        ) : null;
-      })()}
+      {/* Render overlay if needed */}
+      {state.showFirstPlayerOverlay && state.firstPlayerData && (
+        <PlayerSelectionOverlay
+          {...state.firstPlayerData}
+          isNavigating={state.isNavigating}
+          onFinish={async () => {
+            if (state.isNavigating) return;
+            setState(s => ({ ...s, isNavigating: true }));
+            navigate(`/game/${gameId}`);
+            if (gameId) await fetchGame(gameId);
+            setState(s => ({ ...s, showFirstPlayerOverlay: false, isNavigating: false }));
+          }}
+        />
+      )}
 
       <div className={styles.content}>
         <div className="min-h-screen flex flex-col">

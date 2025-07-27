@@ -1,4 +1,5 @@
 import { GameDocument } from '../../types/gameTypes';
+import { CARD_SIZE, CARD_RANGE } from '../../../../shared/constants/game';
 import { PlayerRole, IPlayer } from '../../types/playerTypes';
 import { IGameService, IGameCreationService, IGamePlayService, IGameConnectionService } from './IGameService';
 import { IGameRepository } from '../../data/repositories/IGameRepository';
@@ -154,9 +155,18 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
   }
 
   async setPlayerReady(gameId: string, playerId: string, card?: number[][] | null) {
+    // Use shared constants and inject config for card generation
+    // CARD_SIZE, CARD_RANGE, and a random number generator
+    const getRandomNumber = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
     return this.executeGameOperation(gameId, playerId, (game, _, player) => {
       player.status = 'ready';
-      player.card = card || generateRandomCard();
+      player.card = card || generateRandomCard(
+        CARD_SIZE,
+        CARD_SIZE,
+        CARD_RANGE.min,
+        CARD_RANGE.max,
+        getRandomNumber
+      );
       if (game.areBothPlayersReady()) game.startGame();
       game.updateStatusMessage();
       return game;

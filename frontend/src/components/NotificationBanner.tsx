@@ -25,20 +25,16 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
     }
   }, [autoClose, duration, onClose]);
 
-  const getTypeStyles = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-600 border-green-500 text-green-100';
-      case 'error':
-        return 'bg-red-600 border-red-500 text-red-100';
-      case 'warning':
-        return 'bg-yellow-600 border-yellow-500 text-yellow-100';
-      case 'info':
-        return 'bg-blue-600 border-blue-500 text-blue-100';
-      default:
-        return 'bg-gray-600 border-gray-500 text-gray-100';
-    }
+  // ...existing code...
+  // Consolidate notification type styles for reuse
+  const TYPE_STYLES: Record<string, string> = {
+    success: 'bg-green-600 border-green-500 text-green-100',
+    error: 'bg-red-600 border-red-500 text-red-100',
+    warning: 'bg-yellow-600 border-yellow-500 text-yellow-100',
+    info: 'bg-blue-600 border-blue-500 text-blue-100',
+    default: 'bg-gray-600 border-gray-500 text-gray-100'
   };
+  const getTypeStyles = () => TYPE_STYLES[type] || TYPE_STYLES.default;
 
   return (
     <div className="fixed top-4 left-4 right-4 z-50">

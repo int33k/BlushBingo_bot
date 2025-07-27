@@ -112,6 +112,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                     className={getAvatarStyles() + ' object-cover'}
                     style={{ width: '48px', height: '48px', borderRadius: '1rem' }}
                     onError={() => setAvatarError(true)}
+                    loading="lazy"
+                    decoding="async"
                   />
                 )
               : (

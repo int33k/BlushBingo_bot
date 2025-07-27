@@ -1,4 +1,6 @@
 import { io, Socket } from 'socket.io-client';
+// Use shared socket types for event data
+// ...existing code...
 
 // Socket.IO instance
 let socket: Socket | null = null;

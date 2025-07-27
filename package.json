@@ -10,7 +10,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "build": "npm run build:frontend && cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "start": "npm run build && cd backend && cross-env SERVE_FRONTEND=true npm start",
+    "start": "npm run start --prefix backend",
     "serve": "cd backend && cross-env SERVE_FRONTEND=true npm start"
   },
   "keywords": [

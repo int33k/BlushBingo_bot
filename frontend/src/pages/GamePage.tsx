@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket, useUser, useGame, useGameLogic, useSocketHandler, useNavigationHandler } from '../hooks';
 import VictoryOverlay from '../components/VictoryOverlay';
+import PlayerSelectionOverlay from '../components/PlayerSelectionOverlay';
 import GameHeader from '../components/GameHeader';
 import MoveHistory from '../components/MoveHistory';
 import GameBingoCard from '../components/GameBingoCard';
@@ -60,6 +61,7 @@ const GamePage: React.FC = () => {
     notification: Notification | null;
     isNavigating: boolean;
     opponentConnected: boolean;
+    showFirstPlayerOverlay: boolean;
   }>({ 
     showBingoAnimation: false, 
     bingoAnimationComplete: false, 
@@ -67,11 +69,24 @@ const GamePage: React.FC = () => {
     rematchStatus: 'none',
     notification: null,
     isNavigating: false,
-    opponentConnected: false // Initialize as false, will be updated when game loads
+    opponentConnected: false,
+    showFirstPlayerOverlay: false
   });
+  // Show first player selection overlay when both players are ready and game is not yet playing
+  useEffect(() => {
+    if (!currentGame) return;
+    const bothReady = currentGame.players?.challenger?.status === 'ready' && currentGame.players?.acceptor?.status === 'ready';
+    if (bothReady && currentGame.status === 'lobby' && !uiState.showFirstPlayerOverlay) {
+      setUIState(prev => ({ ...prev, showFirstPlayerOverlay: true }));
+    }
+    if (currentGame.status === 'playing' && uiState.showFirstPlayerOverlay) {
+      setUIState(prev => ({ ...prev, showFirstPlayerOverlay: false }));
+    }
+  }, [currentGame, uiState.showFirstPlayerOverlay]);
   
   const fetchedRef = useRef<string | null>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
 
   // Utility function for notifications
   const showNotification = useCallback((message: string, type: Notification['type']) => {
@@ -79,14 +94,19 @@ const GamePage: React.FC = () => {
   }, []);
 
   // Effects with fetch guard and navigation handling
-  useEffect(() => {
-    if (!gameId) navigate('/');
-    else if (fetchedRef.current !== gameId) {
-      fetchedRef.current = gameId;
-      setFetchFailed(false);
-      fetchGame(gameId).catch(() => setFetchFailed(true));
-    }
-  }, [gameId, navigate, fetchGame, setFetchFailed]);
+useEffect(() => {
+  let cancelled = false;
+  if (!gameId) navigate('/');
+  else if (fetchedRef.current !== gameId) {
+    fetchedRef.current = gameId;
+    setInitialLoading(true);
+    setFetchFailed(false);
+    fetchGame(gameId)
+      .catch(() => { if (!cancelled) setFetchFailed(true); })
+      .finally(() => { if (!cancelled) setInitialLoading(false); });
+  }
+  return () => { cancelled = true; };
+}, [gameId, navigate, fetchGame]);
 
   // Update game logic when game state changes
   useEffect(() => {
@@ -155,7 +175,7 @@ const GamePage: React.FC = () => {
       // Accept disconnection from any game context (original game or rematch lobby)
       if (disconnectData.playerId === gameLogic.playerInfo.opponent.playerId) {
         setUIState(prev => ({ ...prev, opponentConnected: false }));
-        console.log(`Opponent ${disconnectData.playerId} disconnected from game ${disconnectData.game?.gameId || 'unknown'}`);
+        // ...removed debug log...
       }
     };
     
@@ -173,19 +193,19 @@ const GamePage: React.FC = () => {
     if (!currentGame) return;
 
     const handleGameUpdate = (data: unknown) => {
-      console.log('[DEBUG] Received game:updated event in GamePage:', data);
+      // ...removed debug log...
       const { game } = data as { game?: typeof currentGame };
       if (game && game.gameId === gameId) {
-        console.log('[DEBUG] Fetching updated game state after move/update');
+        // ...removed debug log...
         fetchGame(gameId);
       }
     };
 
     const handlePlayerReadyStatus = (data: unknown) => {
-      console.log('[DEBUG] Received player:readyStatus event in GamePage:', data);
+      // ...removed debug log...
       const { game } = data as { game?: typeof currentGame };
       if (game && game.gameId === gameId) {
-        console.log('[DEBUG] Fetching updated game state after ready status change');
+        // ...removed debug log...
         fetchGame(gameId);
       }
     };
@@ -205,20 +225,20 @@ const GamePage: React.FC = () => {
     if (!currentGame) return;
 
     const handleBingoClaimed = (data: unknown) => {
-      console.log('[DEBUG] Received game:bingoClaimedBy event in GamePage:', data);
+      // ...removed debug log...
       const { game } = data as { game?: typeof currentGame };
       if (game && game.gameId === gameId && game.status === 'completed') {
-        console.log('[DEBUG] Game completed via bingo claim - forcing victory overlay');
+        // ...removed debug log...
         const hasWinner = !!game.winner;
         const isWinner = game.winner === gameLogic.playerInfo.role;
         
         if (hasWinner) {
           if (isWinner) {
             // Winner: Show overlay only after animation completes (existing logic handles this)
-            console.log('[DEBUG] Winner - animation will complete and show overlay');
+            // ...removed debug log...
           } else {
             // Loser: Show victory overlay immediately 
-            console.log('[DEBUG] Loser - showing victory overlay immediately');
+            // ...removed debug log...
             setUIState(prev => ({
               ...prev,
               showVictoryOverlay: true,
@@ -313,51 +333,7 @@ const GamePage: React.FC = () => {
     }, 2000); // Wait for actual animation completion
   }, [currentGame, gameLogic.markedLetters, gameLogic.playerInfo, gameId, sendSocketMessage]);
 
-  // Instant win function for testing - bypasses normal validation
-  // const handleInstantWin = useCallback(() => {
-  //   if (!currentGame || currentGame.status !== 'playing' || !gameLogic.playerInfo.current?.playerId) return;
-    
-  //   // Start bingo animation immediately
-  //   setUIState(prev => ({ ...prev, showBingoAnimation: true, bingoAnimationComplete: false }));
-    
-  //   // Set marked letters to simulate 5 completed lines in UI
-  //   gameLogic.setMarkedLetters([true, true, true, true, true]);
-    
-  //   // Call special instant win endpoint that will set completedLines to 5 and then claim bingo
-  //   const instantWinPayload = {
-  //     gameId,
-  //     playerId: gameLogic.playerInfo.current.playerId
-  //   };
-    
-  //   const success = sendSocketMessage('game:instantWin', instantWinPayload, (response: unknown) => {
-  //     console.log('Instant win response:', response);
-  //     const ack = response as { success?: boolean; error?: string };
-  //     if (ack?.success) {
-  //       console.log('Instant win successful via socket');
-  //     } else {
-  //       console.log('Instant win failed via socket:', ack?.error);
-  //     }
-  //   });
-    
-  //   if (!success) {
-  //     console.log('Socket not available, trying API fallback');
-  //     // Fallback to API
-  //     apiCall(`/players/${gameId}/instant-win`, instantWinPayload)
-  //       .then(() => {
-  //         console.log('Instant win successful via API');
-  //       })
-  //       .catch((error) => {
-  //         console.log('Instant win API failed:', error);
-  //       });
-  //   }
-    
-  //   // Set animation complete after reasonable delay
-  //   setTimeout(() => {
-  //     setUIState(prev => ({ ...prev, bingoAnimationComplete: true }));
-  //   }, 2000);
-    
-  //   showNotification('🏆 Instant win activated!', 'success');
-  // }, [currentGame, gameLogic, gameId, sendSocketMessage, showNotification]);
+  // ...existing code...
 
   const handleRematch = useCallback(() => {
     if (!currentGame || !gameLogic.playerInfo.current) return;
@@ -395,25 +371,14 @@ const GamePage: React.FC = () => {
     const hasWinner = !!currentGame?.winner;
     const isWinner = currentGame?.winner === gameLogic.playerInfo.role;
 
-    console.log('[DEBUG] Victory overlay check:', {
-      isCompleted,
-      hasWinner,
-      isWinner,
-      winner: currentGame?.winner,
-      playerRole: gameLogic.playerInfo.role,
-      bingoAnimationComplete: uiState.bingoAnimationComplete,
-      showVictoryOverlay: uiState.showVictoryOverlay
-    });
+    // ...removed debug log...
 
     if (isCompleted && hasWinner && !uiState.showVictoryOverlay) {
       if (isWinner && uiState.showBingoAnimation && !uiState.bingoAnimationComplete) {
         // Winner: Wait for animation to complete
-        console.log('[DEBUG] Winner waiting for animation to complete');
         return;
       }
-      
       // Show victory overlay for both players
-      console.log('[DEBUG] Showing victory overlay for', isWinner ? 'winner' : 'loser');
       setUIState(prev => ({
         ...prev,
         showVictoryOverlay: true,
@@ -492,15 +457,14 @@ const GamePage: React.FC = () => {
   }, [currentGame, gameLogic.playerInfo, sendSocketMessage, uiState.isNavigating]);
 
   // Loading state
-  // Show loading while explicitly loading, or while we have attempted fetch but no result yet
-  // Simplified loading - only show if not connected
-  if (!isConnected || !user) {
+  // Optimized loading state: show only if initial fetch is running or not connected
+  if (!isConnected || !user || initialLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-white relative overflow-x-hidden">
         <div className="flex items-center justify-center h-screen">
           <div className="text-center space-y-4">
-            <div className="animate-spin w-12 h-12 border-4 border-teal-400/30 border-t-teal-400 rounded-full mx-auto"></div>
-            <div className="text-xl font-medium text-teal-400">Connecting...</div>
+            <div className="w-12 h-12 border-4 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="text-xl font-semibold text-teal-400">Loading game...</div>
           </div>
         </div>
       </div>
@@ -540,6 +504,17 @@ const GamePage: React.FC = () => {
         />
       )}
 
+      {/* First Player Selection Overlay */}
+      {uiState.showFirstPlayerOverlay && currentGame?.players?.challenger && currentGame?.players?.acceptor && gameLogic.playerInfo.role && (
+        <PlayerSelectionOverlay
+          currentPlayer={currentGame.players[gameLogic.playerInfo.role as 'challenger' | 'acceptor'] || { playerId: '', name: '', status: 'waiting', connected: false }}
+          opponent={currentGame.players[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || { playerId: '', name: '', status: 'waiting', connected: false }}
+          firstPlayerId={currentGame.currentTurn || ''}
+          onFinish={() => setUIState(prev => ({ ...prev, showFirstPlayerOverlay: false }))}
+          isNavigating={uiState.isNavigating}
+        />
+      )}
+
       {/* Rematch Transition Loading Overlay */}
       {uiState.isNavigating && (
         <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 z-50 flex items-center justify-center">
@@ -550,60 +525,62 @@ const GamePage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col justify-between px-4" style={{ minHeight: '0' }}>
-        <div className="w-full mx-auto" style={{ maxWidth: '96vw' }}>
-          {/* Game Header */}
-          <div className="w-full" style={{ marginTop: '1vh' }}>
-            <GameHeader
-              currentGame={currentGame}
-              currentPlayer={currentGame?.players?.[gameLogic.playerInfo.role as 'challenger' | 'acceptor' || 'challenger'] || null}
-              opponent={currentGame?.players?.[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || null}
+      {!uiState.showFirstPlayerOverlay && (
+        <div className="flex-1 flex flex-col justify-between px-4" style={{ minHeight: '0' }}>
+          <div className="w-full mx-auto" style={{ maxWidth: '96vw' }}>
+            {/* Game Header */}
+            <div className="w-full" style={{ marginTop: '1vh' }}>
+              <GameHeader
+                currentGame={currentGame}
+                currentPlayer={currentGame?.players?.[gameLogic.playerInfo.role as 'challenger' | 'acceptor' || 'challenger'] || null}
+                opponent={currentGame?.players?.[gameLogic.playerInfo.role === 'challenger' ? 'acceptor' : 'challenger'] || null}
+                currentPlayerRole={gameLogic.playerInfo.role}
+              />
+            </div>
+
+            {/* Move History */}
+            <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '3vh' }}>
+              <MoveHistory
+                moveHistory={gameLogic.moveHistory}
+                currentPlayerId={gameLogic.playerInfo.current?.playerId}
+                className="py-1"
+              />
+            </div>
+
+            {/* Game Bingo Card */}
+            <GameBingoCard
+              bingoCard={gameLogic.bingoCard}
+              onCellClick={handleCellClick}
+              isCellInCompletedLine={gameLogic.isCellInCompletedLine}
               currentPlayerRole={gameLogic.playerInfo.role}
+              currentGame={currentGame}
+              className="w-full mx-auto"
+              cellPadding="py-[2vw] px-[2vw]"
             />
+
+            {/* BINGO Progress Bar (BINGO Letters) */}
+            <div className="w-full" style={{ maxWidth: '96vw', marginTop: '1vh', marginBottom: '1vh' }}>
+              <BingoLetters
+                activeLetters={gameLogic.activeLetters}
+                markedLetters={gameLogic.markedLetters}
+                onLetterClick={handleLetterClick}
+                containerClassName="grid grid-cols-5 gap-[2vw]"
+                letterClassName="text-center py-[2.5vw] rounded-xl font-bold text-xl transition-all duration-300 relative border-2 backdrop-blur-sm"
+              />
+            </div>
           </div>
 
-          {/* Move History */}
-          <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '3vh' }}>
-            <MoveHistory
-              moveHistory={gameLogic.moveHistory}
-              currentPlayerId={gameLogic.playerInfo.current?.playerId}
-              className="py-1"
-            />
-          </div>
-
-          {/* Game Bingo Card */}
-          <GameBingoCard
-            bingoCard={gameLogic.bingoCard}
-            onCellClick={handleCellClick}
-            isCellInCompletedLine={gameLogic.isCellInCompletedLine}
-            currentPlayerRole={gameLogic.playerInfo.role}
-            currentGame={currentGame}
-            className="w-full mx-auto"
-            cellPadding="py-[2vw] px-[2vw]"
-          />
-
-          {/* BINGO Progress Bar (BINGO Letters) */}
-          <div className="w-full" style={{ maxWidth: '96vw', marginTop: '1vh', marginBottom: '1vh' }}>
-            <BingoLetters
-              activeLetters={gameLogic.activeLetters}
+          {/* BINGO STOP Button at the bottom */}
+          <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '2vh' }}>
+            <BingoButton
+              currentGame={currentGame}
               markedLetters={gameLogic.markedLetters}
-              onLetterClick={handleLetterClick}
-              containerClassName="grid grid-cols-5 gap-[2vw]"
-              letterClassName="text-center py-[2.5vw] rounded-xl font-bold text-xl transition-all duration-300 relative border-2 backdrop-blur-sm"
+              onBingoStop={handleBingoStop}
+              className="w-full"
             />
           </div>
         </div>
-
-        {/* BINGO STOP Button at the bottom */}
-        <div className="w-full" style={{ maxWidth: '96vw', marginBottom: '2vh' }}>
-          <BingoButton
-            currentGame={currentGame}
-            markedLetters={gameLogic.markedLetters}
-            onBingoStop={handleBingoStop}
-            className="w-full"
-          />
-        </div>
-      </div>
+      )}
 
       {/* BINGO Animation */}
       <BingoAnimation

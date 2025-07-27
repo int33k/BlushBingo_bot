@@ -1,10 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-
-interface Move {
-  playerId?: string;
-  number: number;
-  value: number;
-}
+// Use shared Move type
+import type { Move } from '../shared-adapter';
 
 interface MoveHistoryProps {
   moveHistory: Move[];
@@ -55,7 +51,7 @@ const MoveHistory: React.FC<MoveHistoryProps> = ({
                   boxShadow: `0 0 8px ${shadowColor}` 
                 }}
               >
-                {move.value || move.number}
+                {move.value}
               </div>
             );
           }) : (

@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-interface Player {
-  id: string;
-  name: string;
-  photoUrl?: string;
-}
+import type { Player } from '../types';
 
 interface PlayerSelectionOverlayProps {
   currentPlayer: Player;
@@ -58,7 +54,7 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
         // Stop animation and show final selection
         console.log('[DEBUG] Animation complete, showing final selection');
         setIsAnimating(false);
-        const finalIndex = firstPlayerId === currentPlayer.id ? 0 : 1;
+        const finalIndex = firstPlayerId === currentPlayer.playerId ? 0 : 1;
         setSelectedIndex(finalIndex);
         
         // Close overlay after showing result
@@ -87,7 +83,7 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
       console.log('[DEBUG] Cleaning up animation timer');
       clearTimeout(timer);
     };
-  }, [firstPlayerId, currentPlayer.id, onFinish, isNavigating]);
+  }, [firstPlayerId, currentPlayer.playerId, onFinish, isNavigating]);
 
   // Always show the overlay when component is mounted
   // Parent component controls when to mount/unmount this component
@@ -135,7 +131,7 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
             <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
               {players.map((player, idx) => (
                 <div
-                  key={player.id}
+                  key={player.playerId}
                   className={`
                     relative group transition-all duration-500 ease-out transform
                     ${selectedIndex === idx ? 'scale-105 z-20' : 'scale-95 z-10'}
@@ -195,6 +191,8 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
                     className={`w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl object-cover`}
                     style={{ borderRadius: '1rem' }}
                     onError={e => (e.currentTarget.style.display = 'none')}
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div className={`
@@ -275,5 +273,6 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   );
 };
 
-export default PlayerSelectionOverlay;
+import { memo } from 'react';
+export default memo(PlayerSelectionOverlay);
 

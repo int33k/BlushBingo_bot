@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+// Use shared types for winReason
+import type { WinReason } from '../shared-adapter';
 
 interface VictoryOverlayProps {
   isVisible: boolean;
@@ -6,7 +8,7 @@ interface VictoryOverlayProps {
   winnerName: string;
   winnerInitial: string;
   winnerPhotoUrl?: string;
-  winReason?: 'bingo' | 'disconnection' | 'forfeit';
+  winReason?: WinReason;
   onClose: () => void;
   onRematch: () => void;
   rematchStatus: 'none' | 'requested' | 'waiting' | 'accepted';
@@ -226,6 +228,8 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
                     }`}
                     style={{ borderRadius: '1rem' }}
                     onError={e => { e.currentTarget.style.display = 'none'; }}
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-3xl sm:text-4xl font-black shadow-2xl border-4 transition-all duration-500 ${
@@ -413,4 +417,5 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
   );
 };
 
-export default VictoryOverlay;
+import { memo } from 'react';
+export default memo(VictoryOverlay);

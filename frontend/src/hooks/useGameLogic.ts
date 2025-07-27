@@ -11,7 +11,7 @@ export const useGameLogic = () => {
   const [bingoCard, setBingoCard] = useState<(number | null)[][]>(() => 
     Array(5).fill(null).map(() => Array(5).fill(0))
   );
-  const [moveHistory, setMoveHistory] = useState<Array<{ playerId?: string; number: number; value: number }>>([]);
+  const [moveHistory, setMoveHistory] = useState<Move[]>([]);
   const [activeLetters, setActiveLetters] = useState<boolean[]>(Array(5).fill(false));
   const [markedLetters, setMarkedLetters] = useState<boolean[]>(Array(5).fill(false));
   const [completedLinesHistory, setCompletedLinesHistory] = useState<number[]>([]);
@@ -95,7 +95,7 @@ export const useGameLogic = () => {
   // Update move history from game state
   const updateMoveHistory = useCallback(() => {
     if (currentGame?.moves) {
-      setMoveHistory(currentGame.moves.map((move: Move) => ({ ...move, number: move.value })));
+      setMoveHistory(currentGame.moves);
     }
   }, [currentGame]);
 

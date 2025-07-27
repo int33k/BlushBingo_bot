@@ -92,16 +92,27 @@ const LaunchPage: React.FC = () => {
         const gameId = response.gameId;
         if (typeof gameId === 'string') {
           await fetchGame(gameId);
-          // Share challenge link via Telegram FIRST
-          import('../services/gameService').then(({ shareChallengeLink }) => {
-            const userName = user?.name || '';
-            const shared = shareChallengeLink(gameId, userName);
-            if (!shared) {
-              showNotification(`Share this link: https://t.me/BlushBingo_bot?startapp=${gameId}`, 'info');
-            }           
-            navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
-           
-          });
+          // If Telegram user, show Telegram dialog; else copy to clipboard
+          const isTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user);
+          if (isTelegram) {
+            import('../services/gameService').then(({ shareChallengeLink }) => {
+              const userName = user?.name || '';
+              const shared = shareChallengeLink(gameId, userName);
+              if (!shared) {
+                showNotification(`Share this link: https://t.me/BlushBingo_bot?startapp=${gameId}`, 'info');
+              }
+              navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
+            });
+          } else {
+            const link = `${window.location.origin}/join/${gameId}`;
+            navigator.clipboard.writeText(link).then(() => {
+              showNotification('Challenge link copied to clipboard!', 'info');
+              navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
+            }).catch(() => {
+              showNotification(`Share this link: ${link}`, 'info');
+              navigate(`/lobby/${gameId}`, { state: { fromLaunch: true } });
+            });
+          }
         }
       } else {
         showNotification(response.error || 'Failed to create game', 'error');

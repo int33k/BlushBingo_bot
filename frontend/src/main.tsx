@@ -1,14 +1,10 @@
-import ReactDOM from 'react-dom/client'
-import { telegramWebApp } from './services/telegramWebAppService';
-import { BrowserRouter } from 'react-router-dom'
-import App from './App'
-import './index.css'
-import './styles/edge-optimizations.css'
 
-// --- DEBUG: Log Telegram WebApp globals at the very start ---
-console.log('[DEBUG] window.Telegram:', window.Telegram);
-console.log('[DEBUG] window.Telegram.WebApp:', window.Telegram?.WebApp);
-console.log('[DEBUG] window.Telegram.WebApp.initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
+import ReactDOM from 'react-dom/client';
+import { telegramWebApp } from './services/telegramWebAppService';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
+import './styles/edge-optimizations.css';
 
 // --- EARLY Telegram WebApp initialization ---
 telegramWebApp.initialize();

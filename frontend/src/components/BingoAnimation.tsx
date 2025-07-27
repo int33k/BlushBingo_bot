@@ -670,4 +670,5 @@ const BingoAnimation: React.FC<BingoAnimationProps> = ({
   );
 };
 
-export default BingoAnimation;
+import { memo } from 'react';
+export default memo(BingoAnimation);

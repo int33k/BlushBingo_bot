@@ -7,17 +7,7 @@ import GamePage from './pages/GamePage'
 import { UserProvider } from './contexts/UserContext';
 import { useUser } from './hooks';
 
-// function DebugPanel() {
-//   const { user } = useUser();
-//   return (
-//     <div style={{ background: '#222', color: '#fff', padding: 10, fontSize: 12, position: 'fixed', top: 0, right: 0, zIndex: 9999, maxWidth: 400, wordBreak: 'break-all' }}>
-//       <div><b>window.Telegram:</b> {JSON.stringify(window.Telegram)}</div>
-//       <div><b>window.Telegram.WebApp:</b> {JSON.stringify(window.Telegram?.WebApp)}</div>
-//       <div><b>window.Telegram.WebApp.initDataUnsafe:</b> {JSON.stringify(window.Telegram?.WebApp?.initDataUnsafe)}</div>
-//       <div><b>React user context:</b> {JSON.stringify(user)}</div>
-//     </div>
-//   );
-// }
+// ...existing code...
 import { SocketProvider } from './contexts/SocketContext'
 import { GameProvider } from './contexts/GameContext'
 
@@ -76,7 +66,6 @@ function App() {
   return (
     <div className="app">
       <UserProvider>
-        {/* <DebugPanel /> */}
         <AppRoutes />
       </UserProvider>
     </div>
