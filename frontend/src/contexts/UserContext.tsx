@@ -13,7 +13,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userLoading, setUserLoading] = useState(true);
 
-  // User initialization with short polling/retry for Telegram user
+  // User initialization with faster polling/retry for Telegram user
   useEffect(() => {
     const storedUser = localStorage.getItem('bingoUser');
     const forceNewUser = new URLSearchParams(window.location.search).get('newuser') === 'true';
@@ -25,9 +25,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       console.log('[Telegram Debug] window.Telegram.WebApp.initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
     }
 
-    // Poll for Telegram user for up to 2 seconds
+    // Poll for Telegram user for up to 600ms (3 attempts, 200ms interval)
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 5;
     const interval = setInterval(() => {
       attempts++;
       const telegramUser = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
