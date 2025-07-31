@@ -271,7 +271,7 @@ useEffect(() => {
     const socketSuccess = sendSocketMessage('game:move', moveData, (ack: unknown) => {
       const acknowledgment = ack as { game?: unknown; error?: string };
       if (acknowledgment?.error) {
-        console.error('[DEBUG] Move failed with error:', acknowledgment.error);
+        //console.error('[DEBUG] Move failed with error:', acknowledgment.error);
         showNotification('Move failed, please try again', 'error');
         // Revert optimistic update by fetching fresh game state
         fetchGame(gameId!);

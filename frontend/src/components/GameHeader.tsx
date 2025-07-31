@@ -11,10 +11,10 @@ interface GameHeaderProps {
 const GameHeader: React.FC<GameHeaderProps> = (props) => {
   const { currentGame, currentPlayer, opponent, currentPlayerRole } = props;
   // Debug: Log photoUrl for both players in header
-  console.log('[PHOTOURL FLOW] GameHeader:', {
-    currentPlayerPhotoUrl: currentPlayer?.photoUrl,
-    opponentPhotoUrl: opponent?.photoUrl
-  });
+  // console.log('[PHOTOURL FLOW] GameHeader:', {
+  //   currentPlayerPhotoUrl: currentPlayer?.photoUrl,
+  //   opponentPhotoUrl: opponent?.photoUrl
+  // });
   // Helper to check for valid photoUrl
   const isValidPhotoUrl = (url?: string) => {
     if (!url || typeof url !== 'string') return false;

@@ -78,28 +78,28 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ['player:reconnected', (data: unknown) => {
       const { game } = data as { game?: Game; playerId: string };
       if (game) {
-        console.log(`[DEBUG] Player reconnected, updating game state:`, game);
+        //console.log(`[DEBUG] Player reconnected, updating game state:`, game);
         setState(s => ({ ...s, currentGame: game }));
       }
     }],
     ['game:state', (data: unknown) => {
       const { game } = data as { game?: Game };
       if (game) {
-        console.log(`[DEBUG] Received game state update:`, game);
+        //console.log(`[DEBUG] Received game state update:`, game);
         setState(s => ({ ...s, currentGame: game }));
       }
     }],
     ['connection:reconnect:success', (data: unknown) => {
       const { game } = data as { game?: Game };
       if (game) {
-        console.log(`[DEBUG] Reconnection successful, restoring game state:`, game);
+        //console.log(`[DEBUG] Reconnection successful, restoring game state:`, game);
         setState(s => ({ ...s, currentGame: game }));
       }
     }],
     ['game:rematchRequested', (data: unknown) => {
       const { game } = data as { game?: Game };
       if (game) {
-        console.log(`[DEBUG] Rematch requested, updating game state:`, game);
+        //console.log(`[DEBUG] Rematch requested, updating game state:`, game);
         setState(s => ({ ...s, currentGame: game }));
       }
     }],
@@ -186,11 +186,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Ultra-compact game operations with inline logic and memoized fetchGame
   const operations = useMemo(() => ({
     createGame: () => {
-      console.log('[PHOTOURL FLOW] createGame called with photoUrl:', user?.photoUrl);
+     // console.log('[PHOTOURL FLOW] createGame called with photoUrl:', user?.photoUrl);
       return executeSocketOperation('game:create', user?.photoUrl ? { photoUrl: user.photoUrl } : {});
     },
     joinGame: (gameId: string) => {
-      console.log('[PHOTOURL FLOW] joinGame called with photoUrl:', user?.photoUrl);
+      //console.log('[PHOTOURL FLOW] joinGame called with photoUrl:', user?.photoUrl);
       return executeSocketOperation('game:join', user?.photoUrl ? { gameId, photoUrl: user.photoUrl } : { gameId });
     },
     setPlayerReady: (card: number[][]) => state.currentGame ?

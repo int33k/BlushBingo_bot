@@ -13,10 +13,11 @@ function ensurePlayerPhotoUrls(gameObj: any, game: any): any {
     if (gameObj.players.challenger && !gameObj.players.challenger.photoUrl) gameObj.players.challenger.photoUrl = game.players.challenger?.photoUrl || null;
     if (gameObj.players.acceptor && !gameObj.players.acceptor.photoUrl) gameObj.players.acceptor.photoUrl = game.players.acceptor?.photoUrl || null;
     // Debug: Log both photoUrls at backend emission
-    console.log('[PHOTOURL FLOW] Backend ensurePlayerPhotoUrls:', {
-      challengerPhotoUrl: gameObj.players.challenger?.photoUrl,
-      acceptorPhotoUrl: gameObj.players.acceptor?.photoUrl
-    });
+   // console.log('[PHOTOURL FLOW] Backend ensurePlayerPhotoUrls:', {
+      //challengerPhotoUrl: gameObj.players.challenger?.photoUrl,
+      //acceptorPhotoUrl: gameObj.players.acceptor?.photoUrl
+   // }
+ // );
   }
   return gameObj;
 }
@@ -49,7 +50,7 @@ const getPlayerData = (socket: Socket, data: any) => {
   // Accept photoUrl from socket.data or data
   let photoUrl = data.photoUrl || socket.data.photoUrl || null;
   // Debug: Log photoUrl at getPlayerData
-  console.log('[PHOTOURL FLOW] getPlayerData:', { identifier, name: socket.data.name || data.name, photoUrl, data, socketData: socket.data });
+  //console.log('[PHOTOURL FLOW] getPlayerData:', { identifier, name: socket.data.name || data.name, photoUrl, data, socketData: socket.data });
   return identifier ? { identifier, name: socket.data.name || data.name, photoUrl } : null;
 };
 

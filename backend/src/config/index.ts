@@ -34,9 +34,21 @@ const config = Object.freeze({
 });
 
 export const logger = winston.createLogger({
-  level: config.logging.level, levels: { error: 0, warn: 1, info: 2, http: 3, debug: 4 },
-  format: winston.format.combine(winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }), winston.format.colorize({ all: true }), winston.format.printf(i => `${i.timestamp} ${i.level}: ${i.message}`)),
-  transports: [new winston.transports.Console(), new winston.transports.File({ filename: path.join('logs', 'error.log'), level: 'error' }), new winston.transports.File({ filename: path.join('logs', 'all.log') })]
+  // Only log warn and error in production, info/debug in dev
+  level: config.server.isProd ? 'warn' : config.logging.level,
+  levels: { error: 0, warn: 1, info: 2, http: 3, debug: 4 },
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+    winston.format.colorize({ all: true }),
+    winston.format.printf(i => `${i.timestamp} ${i.level}: ${i.message}`)
+  ),
+  transports: config.server.isProd
+    ? [new winston.transports.Console()]
+    : [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: path.join('logs', 'error.log'), level: 'error' }),
+        new winston.transports.File({ filename: path.join('logs', 'all.log') })
+      ]
 });
 winston.addColors({ error: 'red', warn: 'yellow', info: 'green', http: 'magenta', debug: 'blue' });
 

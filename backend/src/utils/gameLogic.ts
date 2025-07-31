@@ -107,7 +107,7 @@ export const generateStatusMessage = (game: GameDocument, currentPlayerId?: stri
   
   // If opponent is disconnected - this is the key check
   if (!opp.connected) {
-    console.log(`[DEBUG] Opponent is disconnected, returning disconnection message`);
+    //console.log(`[DEBUG] Opponent is disconnected, returning disconnection message`);
     return 'Opponent disconnected. Waiting for them to reconnect...';
   }
   

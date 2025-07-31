@@ -29,7 +29,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   // Send auth when user becomes available
   useEffect(() => {
     if (state.socket && state.isConnected && user && user.identifier) {
-      console.log('[DEBUG] Sending auth for user:', user);
+      //console.log('[DEBUG] Sending auth for user:', user);
       state.socket.emit('auth', { identifier: user.identifier, name: user.name });
     }
   }, [user, state.socket, state.isConnected]);

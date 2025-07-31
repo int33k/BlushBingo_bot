@@ -30,9 +30,9 @@ const VictoryOverlay: React.FC<VictoryOverlayProps> = ({
   isNavigating = false
 }): React.ReactElement => {
   // Debug: Log winner photoUrl in victory overlay
-  console.log('[PHOTOURL FLOW] VictoryOverlay:', {
-    winnerPhotoUrl
-  });
+  // console.log('[PHOTOURL FLOW] VictoryOverlay:', {
+  //   winnerPhotoUrl
+  // });
   const isValidPhotoUrl = (url?: string) => {
     if (!url || typeof url !== 'string') return false;
     if (url.trim() === '' || url.trim().toLowerCase() === 'null') return false;

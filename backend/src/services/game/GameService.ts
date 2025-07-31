@@ -105,7 +105,7 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
     // Pass photoUrl to player object
     const photoUrl = playerData.photoUrl || null;
     // Debug: Log photoUrl at game creation
-    console.log('[PHOTOURL FLOW] GameService.createGame challenger photoUrl:', photoUrl);
+    //console.log('[PHOTOURL FLOW] GameService.createGame challenger photoUrl:', photoUrl);
     const challengerObj: any = { ...this.createPlayerObject(playerId, name) };
     if (photoUrl) challengerObj.photoUrl = photoUrl;
     const game = new Game({
@@ -115,7 +115,7 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
     });
     game.updateStatusMessage();
     // Debug: Log game object after creation
-    console.log('[PHOTOURL FLOW] GameService.createGame persisted:', game.players);
+    //console.log('[PHOTOURL FLOW] GameService.createGame persisted:', game.players);
     return this.repository.save(game);
   }
 
@@ -140,13 +140,13 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
       }
     }
     // Debug: Log photoUrl at game join
-    console.log('[PHOTOURL FLOW] GameService.joinGame acceptor photoUrl:', photoUrl, 'playerData:', playerData);
+    //console.log('[PHOTOURL FLOW] GameService.joinGame acceptor photoUrl:', photoUrl, 'playerData:', playerData);
     // Always update acceptor's photoUrl if present
     const acceptorObj: any = { ...this.createPlayerObject(playerId, name), username: name };
     if (photoUrl) acceptorObj.photoUrl = photoUrl;
     game.players.acceptor = acceptorObj;
     // Debug: Log game object after join
-    console.log('[PHOTOURL FLOW] GameService.joinGame persisted:', game.players);
+    //console.log('[PHOTOURL FLOW] GameService.joinGame persisted:', game.players);
     game.status = 'lobby';
     game.addConnectedPlayer(playerId);
     updateLastActivity(game);
@@ -292,10 +292,10 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
   async handleDisconnection(gameId: string, playerId: string) {
     try {
       return this.executeGameOperation(gameId, playerId, (game, role, player) => {
-        console.log(`[DEBUG] Before disconnection - Player ${playerId} connected status:`, player.connected);
+        //console.log(`[DEBUG] Before disconnection - Player ${playerId} connected status:`, player.connected);
         player.connected = false;
         player.status = 'disconnected'; // Set status to disconnected
-        console.log(`[DEBUG] After disconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
+        //console.log(`[DEBUG] After disconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         game.removeConnectedPlayer(playerId);
         
         // Check if lobby is now empty and schedule cleanup
@@ -326,7 +326,7 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
   async handleReconnection(gameId: string, playerId: string) {
     try {
       const result = await this.executeGameOperation(gameId, playerId, (game, role, player) => {
-        console.log(`[DEBUG] Before reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
+        //console.log(`[DEBUG] Before reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         player.connected = true;
         
         // Restore appropriate status based on game state
@@ -342,7 +342,7 @@ export class GameService implements IGameService, IGameCreationService, IGamePla
           player.status = 'playing';
         }
         
-        console.log(`[DEBUG] After reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
+        //console.log(`[DEBUG] After reconnection - Player ${playerId} connected status:`, player.connected, 'status:', player.status);
         game.addConnectedPlayer(playerId);
         
         // Cancel any scheduled cleanup since someone reconnected

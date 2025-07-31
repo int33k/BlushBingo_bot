@@ -18,21 +18,21 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   isNavigating = false
 }): React.ReactElement => {
   // Debug: Log photoUrl for both players in overlay
-  console.log('[PHOTOURL FLOW] PlayerSelectionOverlay:', {
-    currentPlayerPhotoUrl: currentPlayer?.photoUrl,
-    opponentPhotoUrl: opponent?.photoUrl
-  });
+  // console.log('[PHOTOURL FLOW] PlayerSelectionOverlay:', {
+  //   currentPlayerPhotoUrl: currentPlayer?.photoUrl,
+  //   opponentPhotoUrl: opponent?.photoUrl
+  // });
   const isValidPhotoUrl = (url?: string) => {
     if (!url || typeof url !== 'string') return false;
     if (url.trim() === '' || url.trim().toLowerCase() === 'null') return false;
     return /^https?:\/\//.test(url);
   };
-  console.log('[DEBUG] PlayerSelectionOverlay rendered with props:', {
-    currentPlayer: currentPlayer?.name,
-    opponent: opponent?.name,
-    firstPlayerId,
-    isNavigating
-  });
+  //console.log('[DEBUG] PlayerSelectionOverlay rendered with props:', {
+    //currentPlayer: currentPlayer?.name,
+    //opponent: opponent?.name,
+    //firstPlayerId,
+    //isNavigating
+  //});
   
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(true);
@@ -44,22 +44,22 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
   ];
 
   useEffect(() => {
-    console.log('[DEBUG] PlayerSelectionOverlay useEffect starting');
+    //console.log('[DEBUG] PlayerSelectionOverlay useEffect starting');
     let switchCount = 0;
     const maxSwitches = 6;
     
     const switchPlayer = () => {
-      console.log('[DEBUG] switchPlayer called, switchCount:', switchCount);
+      //console.log('[DEBUG] switchPlayer called, switchCount:', switchCount);
       if (switchCount >= maxSwitches) {
         // Stop animation and show final selection
-        console.log('[DEBUG] Animation complete, showing final selection');
+        //console.log('[DEBUG] Animation complete, showing final selection');
         setIsAnimating(false);
         const finalIndex = firstPlayerId === currentPlayer.playerId ? 0 : 1;
         setSelectedIndex(finalIndex);
         
         // Close overlay after showing result
         setTimeout(() => {
-          console.log('[DEBUG] Calling onFinish callback');
+          //console.log('[DEBUG] Calling onFinish callback');
           if (onFinish) onFinish();
           // Don't hide overlay here - let parent component handle it
           // The navigation logic in parent will handle hiding
@@ -76,11 +76,11 @@ const PlayerSelectionOverlay: React.FC<PlayerSelectionOverlayProps> = ({
     };
 
     // Start animation after a brief delay
-    console.log('[DEBUG] Starting animation timer');
+    //console.log('[DEBUG] Starting animation timer');
     const timer = setTimeout(switchPlayer, 500);
     
     return () => {
-      console.log('[DEBUG] Cleaning up animation timer');
+      //console.log('[DEBUG] Cleaning up animation timer');
       clearTimeout(timer);
     };
   }, [firstPlayerId, currentPlayer.playerId, onFinish, isNavigating]);

@@ -85,10 +85,13 @@ export const checkSystemHealth = async () => {
 
 export const startHealthChecks = (intervalMs = 60000): NodeJS.Timeout => {
   const isProd = process.env.NODE_ENV === 'production';
-  const interval = isProd ? 300000 : intervalMs; // 5 minutes in prod, 1 minute in dev
-  
-  logger.info(`Starting health checks every ${interval / 1000} seconds`);
-  
+  // In production, run every 15 minutes; in dev, keep as is
+  const interval = isProd ? 900000 : intervalMs; // 15 min prod, 1 min dev
+
+  if (!isProd) {
+    logger.info(`Starting health checks every ${interval / 1000} seconds`);
+  }
+
   return setInterval(async () => {
     try {
       const health = await checkSystemHealth();
@@ -98,6 +101,7 @@ export const startHealthChecks = (intervalMs = 60000): NodeJS.Timeout => {
         // Only log successful checks in development
         logger.debug(`System health check passed: ${JSON.stringify(health)}`);
       }
+      // In production, do not log successful health checks
     } catch (error) {
       logger.error(`Error in health check: ${error instanceof Error ? error.message : String(error)}`);
     }
