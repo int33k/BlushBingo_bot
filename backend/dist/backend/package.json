@@ -4,7 +4,7 @@
     "description": "Backend server for the Bingo game",
     "main": "dist/backend/src/index.js",
     "scripts": {
-        "build": "tsc && robocopy ..\\shared .\\dist\\backend\\shared /E /NFL /NDL /NJH /NJS /NC /NS /NP",
+        "build": "tsc",
         "start": "node dist/backend/src/index.js",
         "start:telegram": "SERVE_FRONTEND=true node dist/backend/src/index.js",
         "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
