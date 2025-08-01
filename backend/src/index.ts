@@ -102,7 +102,7 @@ const createApp = (configs: ReturnType<typeof createConfigs>) => {
 
   // Serve static files from frontend build (for production/Telegram)
   if (config.server.isProd || process.env.SERVE_FRONTEND === 'true') {
-    const frontendBuildPath = path.resolve(process.cwd(), '../frontend/dist');
+    const frontendBuildPath = path.resolve(process.cwd(), 'public');
     // Set CSP header for all static file responses
     app.use((req, res, next) => {
       res.setHeader('Content-Security-Policy', [

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Socket.IO Test</title>
+</head>
+<body>
+    <h1>Direct Socket.IO Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="log"></div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        function log(message) {
+            document.getElementById('log').innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+
+        function testConnection() {
+            log('Starting direct connection test...');
+            
+            const socket = io('http://localhost:3001', {
+                transports: ['polling', 'websocket'],
+                forceNew: true
+            });
+
+            socket.on('connect', () => {
+                log('✅ Socket connected! ID: ' + socket.id);
+                document.getElementById('status').textContent = 'Connected';
+                
+                // Test auth
+                socket.emit('auth', { identifier: 'test-user', name: 'Test User' }, (response) => {
+                    log('Auth response: ' + JSON.stringify(response));
+                });
+                
+                // Test game create
+                socket.emit('game:create', { identifier: 'test-user', name: 'Test User' }, (response) => {
+                    log('Game create response: ' + JSON.stringify(response));
+                });
+            });
+
+            socket.on('connect_error', (err) => {
+                log('❌ Connection error: ' + err.message);
+                document.getElementById('status').textContent = 'Connection Failed';
+            });
+
+            socket.on('disconnect', (reason) => {
+                log('🔌 Disconnected: ' + reason);
+                document.getElementById('status').textContent = 'Disconnected';
+            });
+        }
+
+        // Auto test on load
+        window.addEventListener('load', testConnection);
+    </script>
+</body>
+</html>
