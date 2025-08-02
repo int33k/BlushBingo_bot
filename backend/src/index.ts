@@ -110,7 +110,7 @@ const createApp = (configs: ReturnType<typeof createConfigs>) => {
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://telegram.org https://t.me",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https://t.me https://telegram.org https://cdn5.cdn-telegram.org",
+        "img-src 'self' data: https://t.me https://telegram.org *.telegram.org *.telegram.space *.cdn-telegram.org *.cdn-telegram.space",
         "connect-src 'self' https://t.me https://telegram.org",
         "font-src 'self'",
         "object-src 'none'",
